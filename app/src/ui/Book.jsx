@@ -172,6 +172,7 @@ export default function Book({ v }) {
       <aside className="bk-side" ref={side}>
         <div className="bk-side-top">
           <button type="button" className="bk-back" onClick={v.closeBook} title="Back to the map (Esc)">← Back to map</button>
+          <button type="button" className="bk-back" onClick={v.exportBook} title="Download this notebook as one .html file that opens in any browser">Download HTML</button>
         </div>
         <a href="#" className="bk-booktitle" onClick={(e) => { e.preventDefault(); go(0); }}>{book.title}</a>
         <input className="bk-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search this notebook" />

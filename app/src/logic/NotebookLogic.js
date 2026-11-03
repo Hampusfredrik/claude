@@ -19,6 +19,7 @@ import { richBlock, richLabel } from '../text/markdown.js';
 import { parseRefs, vancouver } from '../text/refs.js';
 import { buildBook } from '../book/buildBook.js';
 import { placeChild } from '../layout/place.js';
+import { bookHtml } from '../export/bookHtml.js';
 
 export default class NotebookLogic extends DCLogic {
   undoStack = [];
@@ -747,6 +748,18 @@ export default class NotebookLogic extends DCLogic {
     });
     return id;
   }
+  // Download the notebook view of the current map as one .html file.
+  exportBook() {
+    const book = this.bookData(); if (!book) return;
+    const name = (book.title.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'notebook') + '-notebook.html';
+    try {
+      const url = URL.createObjectURL(new Blob([bookHtml(book)], { type: 'text/html' })), a = document.createElement('a');
+      a.href = url; a.download = name; a.style.display = 'none';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      this.setState({ saved: 'Exported ' + name });
+    } catch (err) { window.alert('Export failed: ' + err.message); }
+  }
   bookData() {
     const s = this.state, c = this._book;
     if (c && c.nodes === s.nodes && c.edges === s.edges && c.cats === s.cats) return c.book;
@@ -1175,6 +1188,7 @@ export default class NotebookLogic extends DCLogic {
       refsDyn: s.mobile ? 'left:12px;right:12px;top:64px;bottom:12px;width:auto;' : '',
       book: s.bookOpen ? this.bookData() : null,
       openBook: () => this.setState({ bookOpen: true, refsOpen: false, tidyOpen: false, exportOpen: false, mapSearch: false, mapQ: '', mapQIdx: null, selEdge: null, multi: [], editingId: null, toolsOpen: false }),
+      exportBook: () => { this.setState({ exportOpen: false }); this.exportBook(); },
       closeBook: () => this.setState({ bookOpen: false, bookEditId: null, bookTitleEdit: null, slash: null }),
       bookEdit: (id) => this.setState({ modalId: id, selNode: id, tab: 'notes', notesEditing: false, editingId: null, selEdge: null, bookEditId: null, bookTitleEdit: null }),
       // Editing in the notebook view: the same boxes as the map (patchNode), so

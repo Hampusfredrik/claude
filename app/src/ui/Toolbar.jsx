@@ -188,6 +188,9 @@ export default function Toolbar({ v }) {
                   <button onClick={v.expMapHtml} style={{ border: "none", background: "transparent", textAlign: "left", fontSize: "13px", color: "#2a2724", padding: "8px 10px", borderRadius: "7px", cursor: "pointer" }} className="scp9">
                     Interactive map (.html)
                   </button>
+                <button data-verify-skip="" onClick={v.exportBook} title="The notebook view as one .html file that opens in any browser" style={{ border: "none", background: "transparent", textAlign: "left", fontSize: "13px", color: "#2a2724", padding: "8px 10px", borderRadius: "7px", cursor: "pointer" }} className="scp9">
+                  Notebook (.html)
+                </button>
                   <button onClick={v.shareMap} title="Create a link that opens this map read-only" style={{ border: "none", background: "transparent", textAlign: "left", fontSize: "13px", color: "#2a2724", padding: "8px 10px", borderRadius: "7px", cursor: "pointer" }} className="scp9">
                     Share read-only link…
                   </button>

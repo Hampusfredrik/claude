@@ -68,7 +68,7 @@ export function buildBook({ nodes, edges, cats }) {
         type: 'box', id: n.id, level, num: numStr, label: n.label || '', sub: n.sub || '', add: addKind,
         titleHtml: inlineHtml(oneLine(n.label), noRefs), catHtml: catHtml(catById[n.cat]),
         tabs: tabs.length > 1 ? tabs.map((t, i) => ({ i, name: t.name || 'Tab ' + (i + 1) })) : null,
-        active, bodyHtml: htmls[active] || ''
+        active, bodyHtml: htmls[active] || '', tabBodies: htmls
       });
       search.push({ anchor: 'bk-' + n.id, num: numStr, title: label(n.id), text: [label(n.id), n.sub || '', searchText(allNotes(n))].join('\n') });
     };

@@ -172,3 +172,5 @@
 .bk-add-row { align-self: flex-start; border: none; background: none; color: var(--bk-muted); font-size: 13px; padding: 4px 8px 4px 22px; border-radius: 6px; cursor: pointer; }
 .bk-add-row:hover { color: var(--bk-accent); background: #eef0f2; }
 .bk-add-chapter { font-size: 14px; margin-top: 6px; padding-left: 22px; }
+
+.bk-side-top { display: flex; gap: 6px; flex-wrap: wrap; }
