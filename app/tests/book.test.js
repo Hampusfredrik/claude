@@ -38,10 +38,24 @@ describe('buildBook', () => {
     expect(h).toContain('<li id="bk-ref-1-1">Doe J. Merino. 2019.</li>');
     expect(h).toContain('<li id="bk-ref-1-2"><a href="https://example.org/fine"');
   });
-  it('shows a box with several tabs as a tabset', () => {
+  it('shows a box with several tabs as tabs, with the active tab\'s text', () => {
     const h = book.pages[1].html;
-    expect(h).toContain('<button type="button" role="tab" data-tab="0" class="on">Overview</button>');
-    expect(h).toContain('<div class="bk-panel" data-panel="1" hidden><p>Old breed.</p></div>');
+    expect(h).toContain('<button type="button" role="tab" data-tab="0" class="on">Overview</button><button type="button" role="tab" data-tab="1">History</button>');
+    expect(h).toContain('<div class="bk-body"><p>Hardy.</p></div>');
+    const m = map(); Object.assign(m.nodes[3], { pageIdx: 1, notes: 'Old breed.' });
+    expect(buildBook(m).pages[1].blocks.find(b => b.id === 'a2')).toMatchObject({ active: 1, bodyHtml: '<p>Old breed.</p>' });
+  });
+  it('gives the view one block per box, so a single box can become an editor', () => {
+    const blocks = book.pages[1].blocks;
+    expect(blocks.filter(b => b.type === 'box').map(b => [b.id, b.level, b.num, b.add])).toEqual([['a', 1, '1', 'Section'], ['a1', 2, '1.1', 'Subsection'], ['a2', 2, '1.2', 'Subsection']]);
+    expect(book.pages[0].blocks[0]).toMatchObject({ id: 'm', add: 'Chapter', label: 'Wool' });
+    expect(blocks[0].sub).toBe('Where wool comes from');
+  });
+  it('keeps the subtitle exactly as typed (spaces included) for editing', () => {
+    const m = map(); m.nodes[1].sub = 'Move ';
+    const b = buildBook(m).pages[1].blocks[0];
+    expect(b.sub).toBe('Move ');
+    expect(buildBook(m).pages[1].html).toContain('<p class="bk-sub">Move</p>');
   });
   it('lists arrows with notes as connections and turns [[box]] into a link to its section', () => {
     expect(book.pages[1].html).toContain('Merino</a> → <a href="#" class="bk-xref" data-box="k">Knitting</a>');

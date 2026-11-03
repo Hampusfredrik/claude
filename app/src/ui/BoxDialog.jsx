@@ -1,6 +1,7 @@
 // Box dialog: title, subtitle, category, map link, notes editor with tabs, references, export of the box.
 import { Fragment } from 'react';
 import { css, iv, list, val, str } from './dc.js';
+import SlashMenu from './SlashMenu.jsx';
 
 export default function BoxDialog({ v }) {
   return (
@@ -196,25 +197,7 @@ export default function BoxDialog({ v }) {
             {v.isNotesTab ? (
               <>
                 <div ref={v.edRef} data-ed="1" data-ph={v.edPlaceholder} contentEditable="true" suppressContentEditableWarning={true} spellCheck="true" onInput={v.onEdInput} onBlur={v.onEdBlur} onKeyDown={v.onEdKey} onPaste={v.onEdPaste} onClick={v.onEdClick} style={{ flex: "1 1 0", minHeight: "240px", overflowY: "auto", boxSizing: "border-box", border: "1px solid #dcdee6", borderRadius: "12px", padding: "16px", fontSize: "15px", lineHeight: "1.65", color: "#2a2724", background: "#fffefb", overflowWrap: "anywhere", whiteSpace: "pre-wrap", cursor: "text" }} />
-                {v.slashOpen ? (
-                  <div onMouseDown={v.slashMouseDown} style={css(`position:fixed;left:${str(v.slashX)}px;top:${str(v.slashY)}px;z-index:2000;width:280px;max-height:320px;overflow:auto;box-sizing:border-box;background:#fffefb;border:1px solid #dcdee6;border-radius:10px;box-shadow:0 12px 32px rgba(30,30,40,0.16);padding:6px;display:flex;flex-direction:column;gap:1px`)}>
-                    <div style={{ fontSize: "11px", letterSpacing: "0.06em", textTransform: "uppercase", color: "#7a7c8a", padding: "4px 10px 6px" }}>
-                      Link to box
-                    </div>
-                    {list(v.slashList).map((it, $i) => (
-                      <Fragment key={$i}>
-                        <div onMouseDown={it?.pick} onMouseEnter={it?.hover} style={css(`padding:7px 10px;border-radius:7px;font-size:14px;color:#2a2724;cursor:pointer;background:${str(it?.bg)};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>
-                          {iv(it?.label)}
-                        </div>
-                      </Fragment>
-                    ))}
-                    {v.slashEmpty ? (
-                      <div style={{ padding: "7px 10px", fontSize: "13px", color: "#7a7c8a" }}>
-                        No matching boxes
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
+                {v.slashOpen ? <SlashMenu v={v} /> : null}
                 {v.hasBacklinks ? (
                   <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #e6e7ee" }}>
                     <span style={{ fontSize: "11px", letterSpacing: "0.06em", textTransform: "uppercase", color: "#7a7c8a", marginRight: "4px" }}>

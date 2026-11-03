@@ -6,7 +6,7 @@
 //               references cited in the chapter are numbered at its end.
 // Pure: map data in, HTML strings and tables of contents out.
 import { docTree } from '../export/docTree.js';
-import { pagesOf, allNotes } from '../model/storage.js';
+import { pagesOf, pageIdxOf, allNotes } from '../model/storage.js';
 import { parseRefs, refKey } from '../text/refs.js';
 import { LINK_RE } from '../text/links.js';
 import { escH } from '../text/markdown.js';
@@ -14,6 +14,17 @@ import { inlineHtml, blockHtml, catHtml } from './bookMarkdown.js';
 
 export const cleanLabel = (t) => String(t || '').replace(LINK_RE, '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*\s][^*]*)\*/g, '$1').replace(/\s+/g, ' ').trim() || 'Untitled';
 const oneLine = (t) => String(t || 'Untitled').replace(/\s*\n\s*/g, ' ');
+const num = (s) => (s ? '<span class="bk-num">' + escH(s) + '</span>' : '');
+
+// Read-only HTML of one block (the view renders the same markup with React,
+// so it can turn a box into an editor).
+export function blockToHtml(b) {
+  if (b.type === 'html') return b.html;
+  const tag = 'h' + b.level, open = b.level === 1 ? '<header class="bk-title" id="bk-' + escH(b.id) + '">' : '<section class="bk-sec bk-l' + b.level + '" id="bk-' + escH(b.id) + '">';
+  const tabs = b.tabs ? '<div class="bk-tabs" role="tablist">' + b.tabs.map(t => '<button type="button" role="tab" data-tab="' + t.i + '"' + (t.i === b.active ? ' class="on"' : '') + '>' + escH(t.name) + '</button>').join('') + '</div>' : '';
+  return open + '<' + tag + ' class="bk-h">' + num(b.num) + '<span>' + b.titleHtml + '</span></' + tag + '>' + b.catHtml + (b.sub.trim() ? '<p class="bk-sub">' + escH(b.sub.trim()) + '</p>' : '')
+    + (b.level === 1 ? '</header>' : '') + tabs + '<div class="bk-body">' + b.bodyHtml + '</div>' + (b.level === 1 ? '' : '</section>');
+}
 
 export function buildBook({ nodes, edges, cats }) {
   nodes = nodes || []; edges = edges || [];
@@ -39,49 +50,45 @@ export function buildBook({ nodes, edges, cats }) {
     const ctxFor = (refsTxt) => { const loc = parseRefs(refsTxt); return { label, has, cite: (n) => (loc[n - 1] ? add(loc[n - 1]) : null), rest: () => loc.forEach(add) }; };
     const noRefs = { label, has, cite: () => null };
 
-    const content = (n) => {
-      const tabs = pagesOf(n).map(t => { const c = ctxFor(t.refs); const html = blockHtml(t.notes, n.images, c); c.rest(); return { name: t.name || 'Tab', html }; });
-      const shown = tabs.filter(t => t.html);
-      if (shown.length < 2) return shown.length ? shown[0].html : '';
-      return '<div class="bk-tabset"><div class="bk-tabs" role="tablist">' + shown.map((t, i) => '<button type="button" role="tab" data-tab="' + i + '"' + (i ? '' : ' class="on"') + '>' + escH(t.name) + '</button>').join('') + '</div>'
-        + shown.map((t, i) => '<div class="bk-panel" data-panel="' + i + '"' + (i ? ' hidden' : '') + '>' + t.html + '</div>').join('') + '</div>';
+    const blocks = [], toc = [], search = [];
+    const boxBlock = (n, level, numStr, addKind) => {
+      const tabs = pagesOf(n), active = pageIdxOf(n);
+      // All tabs are rendered so their references get numbers; the active tab is shown.
+      const htmls = tabs.map(t => { const c = ctxFor(t.refs); const h = blockHtml(t.notes, n.images, c); c.rest(); return h; });
+      blocks.push({
+        type: 'box', id: n.id, level, num: numStr, label: n.label || '', sub: n.sub || '', add: addKind,
+        titleHtml: inlineHtml(oneLine(n.label), noRefs), catHtml: catHtml(catById[n.cat]),
+        tabs: tabs.length > 1 ? tabs.map((t, i) => ({ i, name: t.name || 'Tab ' + (i + 1) })) : null,
+        active, bodyHtml: htmls[active] || ''
+      });
+      search.push({ anchor: 'bk-' + n.id, num: numStr, title: label(n.id), text: [label(n.id), n.sub || '', searchText(allNotes(n))].join('\n') });
     };
-    const meta = (n) => catHtml(catById[n.cat]) + (n.sub && n.sub.trim() ? '<p class="bk-sub">' + escH(n.sub.trim()) + '</p>' : '');
-    const editBtn = (n) => '<button type="button" class="bk-edit" data-edit="' + escH(n.id) + '" title="Edit this box">Edit</button>';
-    const num = (s) => (s ? '<span class="bk-num">' + escH(s) + '</span>' : '');
 
-    const toc = [], search = [];
-    const b = p.box;
-    let html = '<header class="bk-title" id="bk-' + escH(b.id) + '"><h1>' + num(p.num) + '<span>' + inlineHtml(oneLine(b.label), noRefs) + '</span>' + editBtn(b) + '</h1>' + meta(b) + '</header>';
-    html += content(b);
-    search.push({ anchor: 'bk-' + b.id, num: p.num, title: label(b.id), text: [label(b.id), b.sub || '', searchText(allNotes(b))].join('\n') });
-
+    boxBlock(p.box, 1, p.num, pi === 0 ? 'Chapter' : 'Section');
     if (pi === 0 && pages.length > 1) {
-      html += '<nav class="bk-contents"><h2>Chapters</h2><ol>' + pages.slice(1).map((c, ci) => '<li><a href="#" data-page="' + (ci + 1) + '">' + num(c.num) + '<span>' + escH(label(c.box.id)) + '</span></a>' + (c.box.sub ? '<span class="bk-contents-sub">' + escH(c.box.sub) + '</span>' : '') + '</li>').join('') + '</ol></nav>';
+      blocks.push({ type: 'html', html: '<nav class="bk-contents"><h2>Chapters</h2><ol>' + pages.slice(1).map((c, ci) => '<li><a href="#" data-page="' + (ci + 1) + '">' + num(c.num) + '<span>' + escH(label(c.box.id)) + '</span></a>' + (c.box.sub ? '<span class="bk-contents-sub">' + escH(c.box.sub) + '</span>' : '') + '</li>').join('') + '</ol></nav>' });
     }
     p.items.forEach(it => {
-      const n = it.n, lvl = Math.min(4, it.depth);
-      const id = 'bk-' + n.id;
-      html += '<section class="bk-sec bk-l' + lvl + '" id="' + escH(id) + '"><h' + lvl + ' class="bk-h">' + num(it.num) + '<span>' + inlineHtml(oneLine(n.label), noRefs) + '</span>' + editBtn(n) + '</h' + lvl + '>' + meta(n) + content(n) + '</section>';
-      toc.push({ id, num: it.num, title: label(n.id), level: lvl });
-      search.push({ anchor: id, num: it.num, title: label(n.id), text: [label(n.id), n.sub || '', searchText(allNotes(n))].join('\n') });
+      const lvl = Math.min(4, it.depth);
+      boxBlock(it.n, lvl, it.num, 'Subsection');
+      toc.push({ id: 'bk-' + it.n.id, num: it.num, title: label(it.n.id), level: lvl });
     });
 
     const conn = edges.filter(e => e.notes && e.notes.trim() && pageOf[e.from] === pi && byId[e.to]);
     if (conn.length) {
       const id = 'bk-conn-' + pi;
       const ref = (x) => '<a href="#" class="bk-xref" data-box="' + escH(x) + '">' + escH(label(x)) + '</a>';
-      html += '<section class="bk-sec bk-l2" id="' + id + '"><h2 class="bk-h">Connections</h2>' + conn.map(e => '<div class="bk-conn"><p class="bk-conn-t">' + ref(e.from) + (e.both ? ' ↔ ' : ' → ') + ref(e.to) + '</p>' + blockHtml(e.notes, null, noRefs) + '</div>').join('') + '</section>';
+      blocks.push({ type: 'html', html: '<section class="bk-sec bk-l2" id="' + id + '"><h2 class="bk-h">Connections</h2>' + conn.map(e => '<div class="bk-conn"><p class="bk-conn-t">' + ref(e.from) + (e.both ? ' ↔ ' : ' → ') + ref(e.to) + '</p>' + blockHtml(e.notes, null, noRefs) + '</div>').join('') + '</section>' });
       toc.push({ id, num: '', title: 'Connections', level: 2 });
       conn.forEach(e => search.push({ anchor: id, num: '', title: label(e.from) + (e.both ? ' ↔ ' : ' → ') + label(e.to), text: e.notes }));
     }
     if (bank.length) {
       const id = 'bk-refs-' + pi;
-      html += '<section class="bk-sec bk-l2 bk-refs" id="' + id + '"><h2 class="bk-h">References</h2><ol>' + bank.map((r, i) => '<li id="bk-ref-' + pi + '-' + (i + 1) + '">' + (r.href ? '<a href="' + escH(r.href) + '" target="_blank" rel="noopener noreferrer">' + escH(r.text) + '</a>' : escH(r.text)) + '</li>').join('') + '</ol></section>';
+      blocks.push({ type: 'html', html: '<section class="bk-sec bk-l2 bk-refs" id="' + id + '"><h2 class="bk-h">References</h2><ol>' + bank.map((r, i) => '<li id="bk-ref-' + pi + '-' + (i + 1) + '">' + (r.href ? '<a href="' + escH(r.href) + '" target="_blank" rel="noopener noreferrer">' + escH(r.text) + '</a>' : escH(r.text)) + '</li>').join('') + '</ol></section>' });
       toc.push({ id, num: '', title: 'References', level: 2 });
       bank.forEach(r => search.push({ anchor: id, num: '', title: 'References', text: r.text }));
     }
-    return { id: b.id, num: p.num, title: label(b.id), html, toc, search };
+    return { id: p.box.id, num: p.num, title: label(p.box.id), blocks, html: blocks.map(blockToHtml).join(''), toc, search };
   });
 
   return { title: label(tree.main.id), pages: built, pageOf };

@@ -389,8 +389,14 @@ export default class NotebookLogic extends DCLogic {
     };
     document.addEventListener('pointerdown', this.onPopDown, true);
     this.onKey = (e) => {
-      // In the notebook view the map shortcuts are off; Esc goes back to the map.
-      if (this.state.bookOpen && !this.state.modalId) { if (e.key === 'Escape') this.setState({ bookOpen: false }); return; }
+      // In the notebook view the map shortcuts are off. Esc stops editing, or
+      // goes back to the map; Ctrl+Z / Ctrl+Shift+Z undo outside text fields.
+      if (this.state.bookOpen && !this.state.modalId) {
+        const t = e.target, typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || ''));
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (typing || this.state.bookEditId || this.state.bookTitleEdit) { if (t && t.blur) t.blur(); this.setState({ bookEditId: null, bookTitleEdit: null }); } else this.setState({ bookOpen: false }); return; }
+        if (!typing && (e.ctrlKey || e.metaKey) && ((e.key || '').toLowerCase() === 'z' || (e.key || '').toLowerCase() === 'y')) { e.preventDefault(); if ((e.key || '').toLowerCase() === 'y' || e.shiftKey) this.redo(); else this.undo(); }
+        return;
+      }
       const k = (e.key || '').toLowerCase();
       const code = e.code || '';
       if ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'y' || code === 'KeyZ' || code === 'KeyY')) {
@@ -679,6 +685,7 @@ export default class NotebookLogic extends DCLogic {
       edges: s.edges.concat([{ id: 'e' + Date.now(), from: parentId, to: id, both: false, strength: 'thin' }]),
       selNode: id, selEdge: null, editingId: editLabel === false ? null : id
     });
+    return id;
   }
   moveSel(dx, dy) {
     const s = this.state, cur = s.nodes.find(n => n.id === s.selNode);
@@ -1154,8 +1161,31 @@ export default class NotebookLogic extends DCLogic {
       refsDyn: s.mobile ? 'left:12px;right:12px;top:64px;bottom:12px;width:auto;' : '',
       book: s.bookOpen ? this.bookData() : null,
       openBook: () => this.setState({ bookOpen: true, refsOpen: false, tidyOpen: false, exportOpen: false, mapSearch: false, mapQ: '', mapQIdx: null, selEdge: null, multi: [], editingId: null, toolsOpen: false }),
-      closeBook: () => this.setState({ bookOpen: false }),
-      bookEdit: (id) => this.setState({ modalId: id, selNode: id, tab: 'notes', notesEditing: false, editingId: null, selEdge: null }),
+      closeBook: () => this.setState({ bookOpen: false, bookEditId: null, bookTitleEdit: null, slash: null }),
+      bookEdit: (id) => this.setState({ modalId: id, selNode: id, tab: 'notes', notesEditing: false, editingId: null, selEdge: null, bookEditId: null, bookTitleEdit: null }),
+      // Editing in the notebook view: the same boxes as the map (patchNode), so
+      // every change is on the map at once and is saved and synced as usual.
+      bookEditId: s.bookOpen && !s.modalId ? s.bookEditId || null : null,
+      bookTitleEdit: s.bookOpen && !s.modalId ? s.bookTitleEdit || null : null,
+      bookStartEdit: (id) => { if (this.state.bookEditId !== id) { this.edNode = null; this.slashRange = null; } this.setState({ bookEditId: id, bookTitleEdit: null, selNode: id, slash: null }); },
+      bookStopEdit: (id) => { if (this.state.bookEditId === id) this.setState({ bookEditId: null, slash: null }); },
+      bookTitleStart: (id) => this.setState({ bookTitleEdit: id, bookEditId: null, selNode: id, slash: null }),
+      bookTitleDone: (id) => { const n = this.state.nodes.find(x => x.id === id); if (n && !(n.label || '').trim()) this.patchNode(id, { label: 'New topic' }); if (this.state.bookTitleEdit === id) this.setState({ bookTitleEdit: null }); },
+      bookLabel: (id, label) => this.patchNode(id, { label: label }),
+      bookLabelKey: (id, ev) => {
+        if (fmtKey(ev, (this.state.nodes.find(x => x.id === id) || {}).label || '', (val) => this.patchNode(id, { label: val }))) return;
+        if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey || ev.shiftKey)) { ev.preventDefault(); insNL(ev, (val) => this.patchNode(id, { label: val })); return; }
+        if (ev.key === 'Enter') { ev.preventDefault(); ev.target.blur(); }
+      },
+      bookSub: (id, sub) => this.patchNode(id, { sub: sub }),
+      bookSetTab: (id, i) => {
+        const n = this.state.nodes.find(x => x.id === id); if (!n || i === pageIdxOf(n)) return;
+        const ps = pagesOf(n);
+        if (this.edNode === id) this.edNode = null;
+        this.patchNode(id, { pages: ps, pageIdx: i, notes: ps[i].notes, refs: ps[i].refs });
+      },
+      bookAdd: (parentId) => { const id = this.addLinked(parentId, false); if (id) this.setState({ bookTitleEdit: id, bookEditId: null, bookFocus: { id: id, t: Date.now() } }); },
+      bookFocus: s.bookFocus || null,
       toggleRefs: () => this.setState({ refsOpen: !s.refsOpen, tidyOpen: false, exportOpen: false }),
       closeRefs: () => this.setState({ refsOpen: false }),
       refList: s.refsOpen ? this.mapRefList() : [],
@@ -1320,6 +1350,7 @@ export default class NotebookLogic extends DCLogic {
       isNotesTab: !!mNode && s.tab === 'notes',
       edPlaceholder: 'Write your notes… Type / to link to another box',
       slashOpen: !!(s.slash && mNode && s.tab === 'notes'),
+      bookSlashOpen: !!(s.slash && !mNode && s.bookOpen && s.bookEditId),
       slashX: s.slash ? s.slash.x : 0,
       slashY: s.slash ? s.slash.y : 0,
       slashMouseDown: (ev) => ev.preventDefault(),
