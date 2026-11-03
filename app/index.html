@@ -3,6 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<script>
+// After a new version is published, a browser can still have the previous
+// index.html cached (GitHub Pages allows 10 minutes). That page asks for
+// script files that no longer exist and stays white. If an app file fails to
+// load, reload once with a fresh URL so the new index.html is fetched.
+(function () {
+  var KEY = 'vn-fresh-reload';
+  window.addEventListener('error', function (e) {
+    var t = e.target;
+    if (!t || (t.tagName !== 'SCRIPT' && t.tagName !== 'LINK') || !/\/assets\//.test(t.src || t.href || '')) return;
+    try { if (sessionStorage.getItem(KEY)) return; sessionStorage.setItem(KEY, '1'); } catch (x) { return; }
+    var u = new URL(location.href); u.searchParams.set('fresh', String(Date.now())); location.replace(u.toString());
+  }, true);
+  if (/[?&]fresh=/.test(location.search)) { var u = new URL(location.href); u.searchParams.delete('fresh'); history.replaceState(null, '', u.toString()); }
+  window.addEventListener('load', function () { setTimeout(function () { try { sessionStorage.removeItem(KEY); } catch (x) {} }, 5000); });
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
 </head>
