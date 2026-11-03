@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "verify": "node tools/verify/compare.mjs"
+    "verify": "node tools/verify/compare.mjs",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",
@@ -17,6 +18,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "6.1.2",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
     "vite": "8.3.4",
     "vitest": "5.0.5"
   }
