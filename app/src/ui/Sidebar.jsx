@@ -115,24 +115,27 @@ export default function Sidebar({ v }) {
                     </div>
                   ) : null}
                   {m?.isMap ? (
-                    <div onClick={m?.onOpen} draggable={m?.draggable} onDragStart={m?.onDragStart} onDragOver={m?.onDragOver} onDrop={m?.onDrop} onDragEnd={m?.onDragEnd} style={css(`display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;cursor:pointer;${str(m?.dyn)}`)} className="scp1">
+                    <div onClick={m?.onOpen} draggable={m?.draggable} onDragStart={m?.onDragStart} onDragOver={m?.onDragOver} onDrop={m?.onDrop} onDragEnd={m?.onDragEnd} style={css(`display:flex;align-items:center;gap:9px;padding:8px 6px 8px 9px;border-radius:9px;cursor:pointer;background:#f4f5f9;border:1px solid #d6d8e2;border-color:#d6d8e2;margin-top:5px;${str(m?.dyn)}`)} className="vn-maprow scp1">
+                      <div aria-hidden="true" style={css(`flex-shrink:0;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fcfcfd;font-size:13px;font-weight:700;${str(m?.badgeDyn)}`)}>
+                        {iv(m?.badge)}
+                      </div>
                       <div style={{ flex: "1", minWidth: "0", display: "flex", flexDirection: "column", gap: "2px" }}>
                         {m?.notRenaming ? (
-                          <div onDoubleClick={m?.onStartRename} style={{ fontSize: "14px", color: "#2a2724", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          <div onDoubleClick={m?.onStartRename} style={css(`font-size:14.5px;color:#2a2724;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${str(m?.titleDyn)}`)}>
                             {iv(m?.title)}
                           </div>
                         ) : null}
                         {m?.renaming ? (
                           <input ref={m?.renameRef} value={val(m?.renameValue)} onChange={m?.onRenameChange} onBlur={m?.onRenameDone} onKeyDown={m?.onRenameKey} onClick={v.stop} style={{ width: "100%", boxSizing: "border-box", border: "1px solid #dcdee6", background: "#fcfcfd", borderRadius: "6px", padding: "3px 6px", fontSize: "14px", color: "#2a2724" }} />
                         ) : null}
-                        <div style={{ fontSize: "11px", color: "#7e8091" }}>
+                        <div style={{ fontSize: "11.5px", color: "#5e6072" }}>
                           {iv(m?.meta)}
                         </div>
                       </div>
-                      <button onClick={m?.onStartRename} title="Rename map" style={{ border: "none", background: "transparent", color: "#a2a4b4", fontSize: "13px", width: "24px", height: "24px", borderRadius: "6px", cursor: "pointer", flexShrink: "0" }} className="scp4">
+                      <button onClick={m?.onStartRename} title="Rename map" data-rowbtn="" style={{ border: "none", background: "transparent", color: "#a2a4b4", fontSize: "13px", width: "24px", height: "24px", borderRadius: "6px", cursor: "pointer", flexShrink: "0" }} className="scp4">
                         ✎
                       </button>
-                      <button onClick={m?.onDelete} title="Delete map" style={{ border: "none", background: "transparent", color: "#a2a4b4", fontSize: "15px", width: "24px", height: "24px", borderRadius: "6px", cursor: "pointer", flexShrink: "0" }} className="scp5">
+                      <button onClick={m?.onDelete} title="Delete map" data-rowbtn="" style={{ border: "none", background: "transparent", color: "#a2a4b4", fontSize: "15px", width: "24px", height: "24px", borderRadius: "6px", cursor: "pointer", flexShrink: "0" }} className="scp5">
                         ×
                       </button>
                     </div>

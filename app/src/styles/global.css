@@ -52,3 +52,6 @@ html,body{height:100%;margin:0}#dc-root,#dc-root>.sc-host{height:100%}
     animation-play-state: running !important; transition-duration: 0s !important;
   }
 }
+
+/* Sidebar map list: rename/delete appear on hover (always shown on touch screens). */
+@media (hover: hover) { .vn-maprow [data-rowbtn] { display: none; } .vn-maprow:hover [data-rowbtn] { display: block; } }

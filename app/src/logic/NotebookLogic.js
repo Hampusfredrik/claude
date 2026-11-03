@@ -10,7 +10,7 @@ import { layoutMethods } from '../layout/layoutMethods.js';
 import { edgeMethods } from '../geometry/edgeMethods.js';
 import { editorMethods } from '../editor/editorMethods.js';
 import { AI_SPEC } from '../ai/spec.js';
-import { ARROW_COLORS, FRAME_COLORS, IDX, KEY, MH, MW, NH, NW, OLD_NAMES, mk } from '../model/constants.js';
+import { ARROW_COLORS, DEFAULT_CATS, FRAME_COLORS, IDX, KEY, MH, MW, NH, NW, OLD_NAMES, mk } from '../model/constants.js';
 import { allNotes, allRefs, blankMap, loadCats, migrateCats, pageIdxOf, pagesOf, readJSON, titleOf } from '../model/storage.js';
 import { countWords } from '../model/wordcount.js';
 import { fmtKey, insNL } from '../text/inputs.js';
@@ -20,6 +20,9 @@ import { parseRefs, vancouver } from '../text/refs.js';
 import { buildBook } from '../book/buildBook.js';
 import { placeChild } from '../layout/place.js';
 import { bookHtml } from '../export/bookHtml.js';
+
+// A stable colour per map (from the category palette), for its badge in the sidebar.
+const mapColor = (id) => { let h = 0; String(id).split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) >>> 0; }); return DEFAULT_CATS[h % DEFAULT_CATS.length].color; };
 
 export default class NotebookLogic extends DCLogic {
   undoStack = [];
@@ -974,7 +977,11 @@ export default class NotebookLogic extends DCLogic {
         onRenameKey: (ev) => { if (ev.key === 'Enter' || ev.key === 'Escape') { ev.preventDefault(); ev.target.blur(); } },
         title: on ? liveTitle : m.title,
         meta: fmt(m.updated),
-        dyn: (indent ? 'margin-left:14px;border-left:2px solid #cacdda;border-radius:0 9px 9px 0;' : '') + (on ? 'background:#fcfcfd;box-shadow:inset 2px 0 0 ' + ac + ';' : '') + (dragOver ? outline : '') + (s.dragMapFrom === m.id ? 'opacity:0.45;' : ''),
+        // Each map is a card with its own colour badge; the open map is outlined.
+        dyn: (indent ? 'margin-left:14px;' : '') + (on ? 'background:#fcfcfd;border-color:' + ac + ';box-shadow:inset 3px 0 0 ' + ac + ',0 1px 4px rgba(42,39,36,.08);' : '') + (dragOver ? outline : '') + (s.dragMapFrom === m.id ? 'opacity:0.45;' : ''),
+        badge: ((on ? liveTitle : m.title) || '?').trim().charAt(0).toUpperCase() || '?',
+        badgeDyn: 'background:' + mapColor(m.id) + ';',
+        titleDyn: on ? 'font-weight:600;' : 'font-weight:500;',
         onOpen: () => { if (this.state.mobile) this.setState({ sidebarOpen: false }); if (on) return; const maps = this.saveNow(); this.openMap(m.id, maps); },
         onDelete: (ev) => {
           ev.stopPropagation();
