@@ -7,6 +7,11 @@ import { mdToHtml } from '../text/markdown.js';
 import { fetchRef, parseRefs, refIdOf, refKey, vancouver } from '../text/refs.js';
 import { compressImage } from './images.js';
 export const editorMethods = {
+  // The box whose notes the rich editor edits: the box dialog's box, or the box
+  // being edited in the notebook view ("Read as notebook") when no dialog is open.
+  edTargetId() { return this.state.modalId || (this.state.bookOpen && this.state.bookEditId) || null; },
+  // True when the rich (contentEditable) editor is the one in use.
+  edIsRich() { return this.state.modalId ? this.state.tab === 'notes' : !!(this.state.bookOpen && this.state.bookEditId); },
   edLive() { return this.edEl && document.contains(this.edEl) ? this.edEl : null; },
   edSaveRange() {
     const el = this.edLive(), sel = window.getSelection();
@@ -22,8 +27,8 @@ export const editorMethods = {
   },
   syncEditor() {
     const el = this.edLive(); if (!el) return;
-    const n = this.state.nodes.find(x => x.id === this.state.modalId);
-    if (!n || this.state.tab !== 'notes') return;
+    const n = this.state.nodes.find(x => x.id === this.edTargetId());
+    if (!n || !this.edIsRich()) return;
     const md = n.notes || '';
     if (this.edNode === n.id && md === this.edMd) return;
     this.refreshLabels();
@@ -171,7 +176,7 @@ export const editorMethods = {
   edInput() {
     setTimeout(() => this.markQ(), 0);
     const el = this.edLive(); if (!el) return;
-    const n = this.state.nodes.find(x => x.id === this.state.modalId); if (!n) return;
+    const n = this.state.nodes.find(x => x.id === this.edTargetId()); if (!n) return;
     const md = serializeEd(el);
     if (!md && !el.querySelector('img,ul,h1,h2,h3') && el.textContent === '' && el.childNodes.length) el.innerHTML = '';
     this.edMd = md; this.edNode = n.id;
@@ -206,7 +211,7 @@ export const editorMethods = {
     const rt = ev.relatedTarget;
     this.edSaveRange();
     if (rt && rt.dataset && rt.dataset.fmt) return;
-    const n = this.state.nodes.find(x => x.id === this.state.modalId); if (!n) return;
+    const n = this.state.nodes.find(x => x.id === this.edTargetId()); if (!n) return;
     const vv = vancouver(n.notes, n.refs), patch = {};
     if (vv.notes !== (n.notes || '')) { patch.notes = vv.notes; patch.refs = vv.refs; }
     if (n.images) { const used = {}; ((vv.notes || '') + '\n' + pagesOf(n).filter((p, i) => i !== pageIdxOf(n)).map(p => p.notes).join('\n')).replace(/\[image:([a-z0-9]+)\]/gi, (m0, id) => { used[id] = 1; return m0; }); const keys = Object.keys(n.images); if (keys.some(k => !used[k])) { const keep = {}; keys.forEach(k => { if (used[k]) keep[k] = n.images[k]; }); patch.images = keep; } }
@@ -250,7 +255,7 @@ export const editorMethods = {
   slashItems(q) {
     const s = this.state, ql = (q || '').trim().toLowerCase();
     this.refreshLabels();
-    return s.nodes.filter(n => n.id !== s.modalId).map(n => ({ id: n.id, label: links.labels[n.id] })).filter(x => !ql || x.label.toLowerCase().indexOf(ql) >= 0).slice(0, 8);
+    return s.nodes.filter(n => n.id !== this.edTargetId()).map(n => ({ id: n.id, label: links.labels[n.id] })).filter(x => !ql || x.label.toLowerCase().indexOf(ql) >= 0).slice(0, 8);
   },
   backlinksOf(id) {
     const ns = this.state.nodes || [];
@@ -289,7 +294,7 @@ export const editorMethods = {
     this.edInput();
   },
   edInsertCite(num) {
-    const el = this.edLive(); const n = this.state.nodes.find(x => x.id === this.state.modalId);
+    const el = this.edLive(); const n = this.state.nodes.find(x => x.id === this.edTargetId());
     if (!el || !n) return false;
     const r = this.edRestore(); if (!r) return false;
     r.deleteContents();
@@ -359,13 +364,13 @@ export const editorMethods = {
     box.setAttribute('data-rzing', '1');
     const mv = (ev) => { const w = Math.max(40, Math.min(cw, w0 + ev.clientX - x0)); pct = Math.round(w / cw * 1000) / 10; box.style.width = pct + '%'; };
     const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); box.removeAttribute('data-rzing');
-      if (pct == null) return; const n = this.state.nodes.find(x => x.id === this.state.modalId); if (!n || !n.images || !n.images[id]) return;
+      if (pct == null) return; const n = this.state.nodes.find(x => x.id === this.edTargetId()); if (!n || !n.images || !n.images[id]) return;
       this.patchNode(n.id, { images: Object.assign({}, n.images, { [id]: Object.assign({}, n.images[id], { pct: pct >= 99.5 ? null : pct }) }) }); };
     window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
     return true;
   },
   edInsertImage(id, o) {
-    const el = this.edLive(); const n = this.state.nodes.find(x => x.id === this.state.modalId);
+    const el = this.edLive(); const n = this.state.nodes.find(x => x.id === this.edTargetId());
     if (!el || !n) return false;
     const r = this.edRestore(); if (!r) return false;
     const box = document.createElement('div'); box.setAttribute('data-img', id); box.setAttribute('contenteditable', 'false');
@@ -381,13 +386,13 @@ export const editorMethods = {
   },
   async insertImageFile(file) {
     if (!file || !/^image\//.test(file.type)) return;
-    const n = this.state.nodes.find(x => x.id === this.state.modalId);
+    const n = this.state.nodes.find(x => x.id === this.edTargetId());
     if (!n) return;
     let o;
     try { o = await compressImage(file); } catch (err) { window.alert(err.message); return; }
     const n2 = this.state.nodes.find(x => x.id === n.id) || n;
     const id = 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    if (this.state.tab === 'notes' && this.edInsertImage(id, o)) return;
+    if (this.edIsRich() && this.edInsertImage(id, o)) return;
     const v = n2.notes || '', p = Math.min(this.citePos == null ? v.length : this.citePos, v.length);
     const pre = v.slice(0, p), post = v.slice(p);
     const tok = (pre && !pre.endsWith('\n') ? '\n' : '') + '[image:' + id + ']' + (post.startsWith('\n') ? '' : '\n');
@@ -404,7 +409,7 @@ export const editorMethods = {
       try { t = await fetchRef(rid); } catch (err) { this.setState({ citeBusy: false, citeMsg: err.message + '. Check the ID, or type the reference by hand.' }); return; }
       this.setState({ citeBusy: false, citeMsg: '' });
     }
-    const n = this.state.nodes.find(x => x.id === this.state.modalId);
+    const n = this.state.nodes.find(x => x.id === this.edTargetId());
     if (!n) return;
     const lines = (n.refs || '').split('\n').map(l => l.trim()).filter(Boolean);
     let idx = lines.findIndex(l => l.toLowerCase() === t.toLowerCase() || refKey(l) === refKey(t));
@@ -424,9 +429,9 @@ export const editorMethods = {
     this.setState({ refBusy: false, refMsg: '', refFetch: '' });
   },
   insertCite(num) {
-    const n = this.state.nodes.find(x => x.id === this.state.modalId);
+    const n = this.state.nodes.find(x => x.id === this.edTargetId());
     if (!n) return;
-    if (this.state.tab === 'notes' && this.edInsertCite(num)) return;
+    if (this.edIsRich() && this.edInsertCite(num)) return;
     const v = n.notes || '', p = Math.min(this.citePos == null ? v.length : this.citePos, v.length);
     const pre = v.slice(0, p), tag = (pre && !/\s$/.test(pre) && !/\]$/.test(pre) ? ' ' : '') + '[' + num + ']';
     const vv = vancouver(pre + tag + v.slice(p), n.refs);
