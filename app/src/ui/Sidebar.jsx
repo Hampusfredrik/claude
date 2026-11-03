@@ -115,10 +115,7 @@ export default function Sidebar({ v }) {
                     </div>
                   ) : null}
                   {m?.isMap ? (
-                    <div onClick={m?.onOpen} draggable={m?.draggable} onDragStart={m?.onDragStart} onDragOver={m?.onDragOver} onDrop={m?.onDrop} onDragEnd={m?.onDragEnd} style={css(`display:flex;align-items:center;gap:9px;padding:8px 6px 8px 9px;border-radius:9px;cursor:pointer;background:#f4f5f9;border:1px solid #d6d8e2;border-color:#d6d8e2;margin-top:5px;${str(m?.dyn)}`)} className="vn-maprow scp1">
-                      <div aria-hidden="true" style={css(`flex-shrink:0;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fcfcfd;font-size:13px;font-weight:700;${str(m?.badgeDyn)}`)}>
-                        {iv(m?.badge)}
-                      </div>
+                    <div onClick={m?.onOpen} draggable={m?.draggable} onDragStart={m?.onDragStart} onDragOver={m?.onDragOver} onDrop={m?.onDrop} onDragEnd={m?.onDragEnd} style={css(`display:flex;align-items:center;gap:8px;padding:8px 6px 8px 11px;border-radius:9px;cursor:pointer;background:#eaf3ee;border:1px solid #c9dfd2;border-color:#c9dfd2;margin-top:5px;${str(m?.dyn)}`)} className="vn-maprow scp1">
                       <div style={{ flex: "1", minWidth: "0", display: "flex", flexDirection: "column", gap: "2px" }}>
                         {m?.notRenaming ? (
                           <div onDoubleClick={m?.onStartRename} style={css(`font-size:14.5px;color:#2a2724;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${str(m?.titleDyn)}`)}>

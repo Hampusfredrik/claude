@@ -21,9 +21,6 @@ import { buildBook } from '../book/buildBook.js';
 import { placeChild } from '../layout/place.js';
 import { bookHtml } from '../export/bookHtml.js';
 
-// A stable colour per map (from the category palette), for its badge in the sidebar.
-const mapColor = (id) => { let h = 0; String(id).split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) >>> 0; }); return DEFAULT_CATS[h % DEFAULT_CATS.length].color; };
-
 export default class NotebookLogic extends DCLogic {
   undoStack = [];
   redoStack = [];
@@ -977,10 +974,8 @@ export default class NotebookLogic extends DCLogic {
         onRenameKey: (ev) => { if (ev.key === 'Enter' || ev.key === 'Escape') { ev.preventDefault(); ev.target.blur(); } },
         title: on ? liveTitle : m.title,
         meta: fmt(m.updated),
-        // Each map is a card with its own colour badge; the open map is outlined.
+        // Each map is a card (tinted green, see Sidebar.jsx); the open map is white and outlined.
         dyn: (indent ? 'margin-left:14px;' : '') + (on ? 'background:#fcfcfd;border-color:' + ac + ';box-shadow:inset 3px 0 0 ' + ac + ',0 1px 4px rgba(42,39,36,.08);' : '') + (dragOver ? outline : '') + (s.dragMapFrom === m.id ? 'opacity:0.45;' : ''),
-        badge: ((on ? liveTitle : m.title) || '?').trim().charAt(0).toUpperCase() || '?',
-        badgeDyn: 'background:' + mapColor(m.id) + ';',
         titleDyn: on ? 'font-weight:600;' : 'font-weight:500;',
         onOpen: () => { if (this.state.mobile) this.setState({ sidebarOpen: false }); if (on) return; const maps = this.saveNow(); this.openMap(m.id, maps); },
         onDelete: (ev) => {
