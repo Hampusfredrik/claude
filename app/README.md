@@ -46,6 +46,7 @@ inte ändras. `index.html` i roten kan ligga kvar som reserv tills du vill ta bo
 | `ai/` | AI-import: instruktioner (`spec.js`), tolkning (`parse.js`), kartbygge (`buildMap.js`) |
 | `text/` | Markdown/rich text, `[[box]]`-länkar, referenser (DOI/PubMed, Vancouver), editor → markdown |
 | `editor/` | Anteckningseditorn i boxdialogen (contentEditable, listor, bilder, citat, `/`-länkar) |
+| `book/` | "Read as notebook": kartan som en bok i Quarto-stil (`buildBook.js`, `bookMarkdown.js`); vyn är `ui/Book.jsx`, stilen `styles/book.css` |
 | `ui/` | React-komponenter: `App`, `Sidebar`, `Canvas`, `Toolbar`, `BoxDialog`, `ArrowPanel`, … |
 | `logic/` | `NotebookLogic` (tillstånd, historik, redigering, vy-modellen `renderVals`) och `DCLogic` |
 | `styles/` | Global CSS, hover/focus-klasser, Karla-typsnitten (samma filer som `index.html` bäddar in) |
@@ -66,6 +67,11 @@ gamla runtimen (synkron `this.state`, `setState`, `forceUpdate`). Inline-stilarn
   PDF-exporten laddar jsPDF 2.5.1 från cdnjs vid behov, precis som tidigare.
 
 ## Verifiering
+
+Funktioner som lagts till efter porten (t.ex. "Read as notebook") är märkta
+`data-verify-skip` och döljs under jämförelsen, så att resten av appen fortfarande
+kan jämföras med den gamla versionen.
+
 
 `tools/verify/compare.mjs` laddar den driftsatta `index.html` och `dist/` sida vid
 sida i Chromium med samma data, fryst klocka och seedad slump. Den jämför DOM och

@@ -162,6 +162,9 @@ export default function Toolbar({ v }) {
               References
             </button>
           </div>
+          <button data-verify-skip="" onClick={v.openBook} title="Read this map as a notebook, chapter by chapter" style={{ border: "1px solid #dcdee6", background: "#fcfcfd", color: "#2a2724", fontSize: "12px", padding: "0 10px", height: "32px", borderRadius: "8px", cursor: "pointer" }} className="scp9">
+            Read as notebook
+          </button>
           <div style={{ width: "1px", height: "22px", background: "#dcdee6" }} />
           <div data-pop="export" style={{ position: "relative" }}>
             {" "}
