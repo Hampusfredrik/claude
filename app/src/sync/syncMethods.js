@@ -2,7 +2,15 @@
 // mirrored as a row in notebook_items (user_id, key, value, updated_at).
 import { IDX, SYNC_META, SYNC_PREFIX, mk } from '../model/constants.js';
 import { blankMap, loadCats, migrateCats, readJSON } from '../model/storage.js';
+import { createClient } from '@supabase/supabase-js';
 import { SB_KEY, SB_URL } from './config.js';
+import { pushPlan, afterPush, mergePull } from './merge.js';
+// localStorage seen through the sync prefix (see merge.js).
+const localView = () => ({
+  keys: () => Object.keys(window.localStorage).filter(k => k.startsWith(SYNC_PREFIX)),
+  get: (k) => window.localStorage.getItem(k)
+});
+
 export const syncMethods = {
   readMeta() { try { return JSON.parse(window.localStorage.getItem(SYNC_META)) || { t: {}, dirty: {}, synced: {} }; } catch (e) { return { t: {}, dirty: {}, synced: {} }; } },
   writeMeta(m) { try { this._rawSet(SYNC_META, JSON.stringify(m)); } catch (e) {} },
@@ -24,8 +32,7 @@ export const syncMethods = {
       if (this.state.syncUser && this.state.syncStatus !== 'Saving…') this.setState({ syncStatus: 'Saving…' });
     };
     const start = () => {
-      if (!window.supabase || !window.supabase.createClient) return false;
-      this.sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'implicit' } });
+      this.sb = createClient(SB_URL, SB_KEY, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'implicit' } });
       this.sb.auth.onAuthStateChange((ev, session) => {
         if (!this.state.authReady) this.setState({ authReady: true });
         if (ev === 'PASSWORD_RECOVERY') this.setState({ recovering: true, sidebarOpen: true });
@@ -34,10 +41,9 @@ export const syncMethods = {
         this.setState({ syncUser: u ? { id: u.id, email: u.email } : null, syncStatus: u ? this.state.syncStatus : '' });
         if (u && prev !== u.id) setTimeout(() => this.pullAll(true), 0);
       });
-      return true;
     };
     this.authFallback = setTimeout(() => { if (!this.state.authReady) this.setState({ authReady: true }); }, 4000);
-    if (!start()) { let n = 0; this.sbWait = setInterval(() => { if (start() || ++n > 40) clearInterval(this.sbWait); }, 250); }
+    start();
     this.onFocusSync = () => { if (document.visibilityState === 'visible' && this.state.syncUser) this.pullAll(false); };
     document.addEventListener('visibilitychange', this.onFocusSync);
     window.addEventListener('online', () => { if (this.state.syncUser) { this.pushDirty(); this.pullAll(false); } });
@@ -48,15 +54,13 @@ export const syncMethods = {
     if (!navigator.onLine) { this.setState({ syncStatus: 'Offline · will sync later' }); return; }
     this.pushing = true;
     try {
-      const m = this.readMeta(), keys = Object.keys(m.dirty), uid = this.state.syncUser.id;
+      const m = this.readMeta(), uid = this.state.syncUser.id;
       if (m.user && m.user !== uid) { this.pushing = false; return; }
-      const ups = [], dels = [];
-      keys.forEach(k => { const v = window.localStorage.getItem(k); if (v == null) dels.push(k); else ups.push({ user_id: uid, key: k, value: v, updated_at: m.t[k] || Date.now() }); });
+      const { keys, ups, dels } = pushPlan(m, localView(), uid);
       if (ups.length) { const { error } = await this.sb.from('notebook_items').upsert(ups, { onConflict: 'user_id,key' }); if (error) throw error; }
       if (dels.length) { const { error } = await this.sb.from('notebook_items').delete().eq('user_id', uid).in('key', dels); if (error) throw error; }
-      const m2 = this.readMeta();
-      keys.forEach(k => { if (m2.dirty[k] === m.dirty[k]) delete m2.dirty[k]; if (window.localStorage.getItem(k) == null) delete m2.synced[k]; else m2.synced[k] = 1; });
-      m2.user = uid; this.writeMeta(m2);
+      const m2 = afterPush(this.readMeta(), m, keys, localView(), uid);
+      this.writeMeta(m2);
       this.setState({ syncStatus: 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
       if (Object.keys(m2.dirty).length) { clearTimeout(this.pushT); this.pushT = setTimeout(() => this.pushDirty(), 1500); }
     } catch (err) {
@@ -80,22 +84,10 @@ export const syncMethods = {
         if (keep) Object.keys(window.localStorage).filter(k => k.startsWith(SYNC_PREFIX)).forEach(k => { m.t[k] = Date.now(); m.dirty[k] = m.t[k]; });
       }
       m.user = uid;
-      const remote = {}; (data || []).forEach(row => remote[row.key] = row);
-      let changed = false;
-      if (!data.length && first) Object.keys(window.localStorage).filter(k => k.startsWith(SYNC_PREFIX)).forEach(k => { if (!m.dirty[k]) { m.t[k] = m.t[k] || Date.now(); m.dirty[k] = m.t[k]; } });
-      Object.keys(remote).forEach(k => {
-        const row = remote[k], lt = m.t[k] || 0;
-        if (m.dirty[k] && lt >= row.updated_at) return;
-        if (row.updated_at > lt || window.localStorage.getItem(k) == null) {
-          if (window.localStorage.getItem(k) !== row.value) { this._rawSet(k, row.value); changed = true; }
-          m.t[k] = row.updated_at; delete m.dirty[k]; m.synced[k] = 1;
-        }
-      });
-      Object.keys(window.localStorage).filter(k => k.startsWith(SYNC_PREFIX)).forEach(k => {
-        if (remote[k]) return;
-        if (m.synced[k] && !m.dirty[k]) { this._rawRem(k); delete m.synced[k]; changed = true; }
-        else if (!m.dirty[k]) { m.t[k] = m.t[k] || Date.now(); m.dirty[k] = m.t[k]; }
-      });
+      const r = mergePull(m, data, localView(), first);
+      r.sets.forEach(([k, v]) => this._rawSet(k, v));
+      r.removes.forEach(k => this._rawRem(k));
+      const changed = r.changed;
       this.writeMeta(m);
       if (changed) this.reloadFromStorage();
       this.setState({ syncStatus: 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });

@@ -211,6 +211,58 @@ if ('share'.includes(filter) || !filter) {
   }
 }
 
+// Sync: both versions log in against the same simulated Supabase (requests are
+// intercepted, nothing reaches the network). The REST calls they make, the
+// resulting localStorage and the screen must be identical.
+if ('sync'.includes(filter) || !filter) {
+  const SB = 'https://xkfnazerlmwfdqkntfbs.supabase.co';
+  const user = { id: 'u-123', aud: 'authenticated', role: 'authenticated', email: 'test@example.com' };
+  const fixIdx = JSON.parse(FIXTURE['visual-notebook.index']);
+  const rows = [
+    // newer on the server: replaces the local copy
+    { key: 'visual-notebook.map.m2', updated_at: T0 + 5000, value: JSON.stringify({ nodes: [{ id: 'a1', label: 'Social life (server)', x: -113, y: -40, main: true }], edges: [], frames: [], tx: 600, ty: 380, scale: 1 }) },
+    { key: 'visual-notebook.index', updated_at: T0 + 5000, value: JSON.stringify(Object.assign({}, fixIdx, { maps: fixIdx.maps.concat([{ id: 'm3', title: 'From phone', updated: T0 }]) })) },
+    // only on the server: written locally
+    { key: 'visual-notebook.map.m3', updated_at: T0 + 4000, value: JSON.stringify({ nodes: [{ id: 'b1', label: 'From phone', x: -113, y: -40, main: true }], edges: [] }) }
+  ];
+  const results = {};
+  for (const [k, url] of [['old', OLD], ['new', NEW]]) {
+    const ctx = await browser.newContext({ viewport: DESKTOP, locale: 'sv-SE', timezoneId: 'Europe/Stockholm' });
+    await ctx.addInitScript(initScript, { storage: FIXTURE, T0, seed: 5 });
+    const calls = [];
+    await ctx.route(SB + '/**', async (route) => {
+      const r = route.request(), u = new URL(r.url());
+      let body = r.postData() || '';
+      try { body = JSON.stringify(JSON.parse(body)); } catch (e) {}
+      calls.push(r.method() + ' ' + u.pathname + u.search + (body ? ' ' + body : ''));
+      if (u.pathname === '/auth/v1/token') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: 'x.eyJzdWIiOiJ1LTEyMyJ9.y', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(T0 / 1000) + 3600, refresh_token: 'r1', user }) });
+      if (u.pathname === '/rest/v1/notebook_items' && r.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rows) });
+      if (u.pathname === '/rest/v1/notebook_items') return route.fulfill({ status: r.method() === 'DELETE' ? 204 : 201, contentType: 'application/json', body: r.method() === 'DELETE' ? '' : '[]' });
+      return route.fulfill({ status: 404, body: '{}' });
+    });
+    const page = await ctx.newPage();
+    await page.goto(url); await settle(page);
+    await page.getByText('☰ Maps').click();
+    await page.getByText('Sign in to sync').click();
+    await page.getByPlaceholder('Email').fill(user.email);
+    await page.getByPlaceholder('Password').fill('secret123');
+    await page.getByText('Log in', { exact: true }).click();
+    await page.waitForTimeout(4000);
+    const store = await page.evaluate(() => Object.keys(localStorage).sort().filter(k => !k.startsWith('sb-')).map(k => k + '=' + localStorage.getItem(k)).join('\n'));
+    results[k] = { calls: calls.join('\n'), store, shot: await page.screenshot() };
+    writeFileSync(join(OUT, 'sync-' + k + '.png'), results[k].shot);
+    await ctx.close();
+  }
+  const cd = firstDiff(results.old.calls, results.new.calls), sd = firstDiff(results.old.store, results.new.store);
+  const px = await pixelDiff(results.old.shot, results.new.shot);
+  const ok = !cd && !sd && px.count === 0 && results.new.calls.includes('POST /rest/v1/notebook_items');
+  console.log((ok ? 'OK  ' : 'FAIL') + ' sync               requests:' + (cd ? 'DIFF' : 'same (' + results.new.calls.split('\n').length + ')') + ' localStorage:' + (sd ? 'DIFF' : 'same') + ' pixels:' + px.count);
+  if (cd) console.log('     ' + cd.replace(/\n/g, '\n     '));
+  if (sd) console.log('     ' + sd.replace(/\n/g, '\n     '));
+  writeFileSync(join(OUT, 'sync-calls.txt'), results.new.calls);
+  if (!ok) failures++;
+}
+
 await browser.close(); s1.close(); s2.close();
 console.log(failures ? '\n' + failures + ' check(s) differ' : '\nAll checks identical');
 process.exit(failures ? 1 : 0);

@@ -444,7 +444,7 @@ export default class NotebookLogic extends DCLogic {
     window.removeEventListener('keydown', this.onKey, true);
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onFocusSync);
-    clearInterval(this.syncTimer); clearInterval(this.sbWait);
+    clearInterval(this.syncTimer);
   }
   componentDidUpdate() {
     const wel = this.surfRef && this.surfRef.current;

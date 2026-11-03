@@ -1,5 +1,4 @@
 import { createRoot } from 'react-dom/client';
-import { createClient } from '@supabase/supabase-js';
 import LogicHost from './LogicHost.jsx';
 import NotebookLogic from './logic/NotebookLogic.js';
 import Template from './ui/Template.jsx';
@@ -7,9 +6,6 @@ import Template from './ui/Template.jsx';
 import './styles/pseudo.css';
 import './styles/fonts.css';
 import './styles/global.css';
-
-// The logic looks for the Supabase UMD global (it used to be loaded from a CDN).
-window.supabase = { createClient };
 
 createRoot(document.getElementById('dc-root')).render(
   <LogicHost logic={NotebookLogic} template={Template} showGrid={true} />
