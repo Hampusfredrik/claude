@@ -82,6 +82,17 @@ const node = (page, label) => page.locator('[data-node]', { hasText: label }).fi
 const tidy = (label) => async (p) => { await p.getByText('Tidy ▾').click(); await p.getByText(label).click(); await p.waitForTimeout(600); };
 const exportItem = (label) => async (p) => { await p.getByText('Export ▾').click(); await p.getByText(label).click(); };
 
+const aiUpload = (name, text) => async (p) => {
+  await exportItem('Import mind map from AI…')(p);
+  const [fc] = await Promise.all([p.waitForEvent('filechooser'), p.getByText('Upload .json file…').click()]);
+  await fc.setFiles({ name, mimeType: 'application/json', buffer: Buffer.from(text) });
+  await p.waitForTimeout(1200);
+};
+const AI_JSON = JSON.stringify({ title: 'Wool', categories: ['Fibres', 'Craft'], children: [
+  { label: 'Fibres', subtitle: 'Where wool comes from', category: 'Fibres', tabs: [{ name: 'Overview', notes: '- Sheep\n- Alpaca\nSee [[Knitting]].', references: ['Doe J. Wool. 2019.'] }], children: [{ label: 'Merino', notes: 'Soft' }, { label: 'Shetland' }] },
+  { label: 'Craft', category: 'Craft', children: [{ label: 'Knitting' }, { label: 'Felting', references: ['10.1000/felt'] }] },
+  { label: 'Care', children: [{ label: 'Washing' }] }, { label: 'History' }],
+  links: [{ from: 'Merino', to: 'Knitting', both: true, strength: 'thick' }] });
 const DESKTOP = { width: 1400, height: 900 }, MOBILE = { width: 390, height: 844 };
 const scenarios = [
   { name: 'initial' },
@@ -101,6 +112,8 @@ const scenarios = [
   { name: 'map-search', run: async (p) => { await p.keyboard.press('Control+f'); await p.waitForTimeout(100); await p.keyboard.type('stress'); } },
   { name: 'refs-panel', run: (p) => p.locator('button', { hasText: /^References$/ }).first().click() },
   { name: 'ai-dialog', run: exportItem('Import mind map from AI…') },
+  { name: 'ai-import-json', run: aiUpload('mindmap.json', AI_JSON) },
+  { name: 'ai-import-outline', run: aiUpload('outline.md', '# Garden\n## Vegetables\n- Tomato\n- Bean\n  - Runner\n## Flowers\nNotes about flowers\n- Rose') },
   { name: 'follow-link', run: (p) => p.getByText('↪ Social life').click() },
   { name: 'tidy-both', run: tidy('⟷  Mind map (both sides)') },
   { name: 'tidy-right', run: tidy('→  Left to right') },
