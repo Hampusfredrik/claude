@@ -107,6 +107,10 @@ const scenarios = [
   { name: 'tidy-down', run: tidy('↓  Top to bottom') },
   { name: 'tidy-radial', run: tidy('◎  Radial') },
   { name: 'tidy-random', run: tidy('⚄  Random shape') },
+  // Mouse stays pressed, so the screenshot shows snapping guides mid-drag.
+  { name: 'drag-snap', run: async (p) => { const b = await node(p, 'Family').boundingBox(); await p.mouse.move(b.x + 40, b.y + 20); await p.mouse.down(); for (let i = 1; i <= 12; i++) { await p.mouse.move(b.x + 40 + i * 3, b.y + 20 - i * 6.1); await p.waitForTimeout(20); } } },
+  { name: 'drag-drop', run: async (p) => { const b = await node(p, 'Exercise').boundingBox(); await p.mouse.move(b.x + 40, b.y + 20); await p.mouse.down(); for (let i = 1; i <= 10; i++) { await p.mouse.move(b.x + 40 + i * 20, b.y + 20 - i * 3); await p.waitForTimeout(20); } await p.mouse.up(); } },
+  { name: 'marquee-select', run: async (p) => { await p.keyboard.down('Shift'); await p.mouse.move(100, 450); await p.mouse.down(); await p.mouse.move(300, 720, { steps: 8 }); await p.mouse.up(); await p.keyboard.up('Shift'); } },
   { name: 'add-box', run: async (p) => { await p.getByText('Add box').click(); await p.keyboard.type('Hello'); await p.keyboard.press('Enter'); } },
   { name: 'undo-after-tidy', run: async (p) => { await tidy('↓  Top to bottom')(p); await p.getByTitle('Undo (Ctrl+Z)').click(); await p.waitForTimeout(300); } },
   { name: 'welcome', storage: (s) => { const c = { ...s }; delete c['visual-notebook.welcomeSkip']; return c; }, wait: 1500 },
