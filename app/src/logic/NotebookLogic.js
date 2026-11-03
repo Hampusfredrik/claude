@@ -12,6 +12,7 @@ import { editorMethods } from '../editor/editorMethods.js';
 import { AI_SPEC } from '../ai/spec.js';
 import { ARROW_COLORS, FRAME_COLORS, IDX, KEY, MH, MW, NH, NW, OLD_NAMES, mk } from '../model/constants.js';
 import { allNotes, allRefs, blankMap, loadCats, migrateCats, pageIdxOf, pagesOf, readJSON, titleOf } from '../model/storage.js';
+import { countWords } from '../model/wordcount.js';
 import { fmtKey, insNL } from '../text/inputs.js';
 import { LINK_RE, links, plain } from '../text/links.js';
 import { richBlock, richLabel } from '../text/markdown.js';
@@ -766,7 +767,7 @@ export default class NotebookLogic extends DCLogic {
     const inhCat = (n) => { if (n.cat || n.main || !treeKid.has(n.id)) return null; let x = n, k = 0; const seen = new Set(); while (TIr.pe[x.id] && !seen.has(x.id)) { seen.add(x.id); x = nodeById[TIr.pe[x.id].from]; k++; if (!x || x.main) return null; if (x.cat && catById[x.cat]) return { c: catById[x.cat], k: k }; } return null; };
     const mqAll = this.mapMatches();
     this._cc = this._cc || new WeakMap();
-    const content = (n) => { let c = this._cc.get(n); if (c) return c; const an = allNotes(n), w = (an.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ').match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu) || []).length, tc = pagesOf(n).filter(p => (p.notes || '').trim()).length, rc = parseRefs(n.refs).length;
+    const content = (n) => { let c = this._cc.get(n); if (c) return c; const an = allNotes(n), w = countWords(an), tc = pagesOf(n).filter(p => (p.notes || '').trim()).length, rc = parseRefs(n.refs).length;
       c = { hasNotes: !!an.trim(), wordCount: w + (w === 1 ? ' word' : ' words'), tabCount: tc + (tc === 1 ? ' tab' : ' tabs'), refCount: rc, labelRich: richLabel(n.label || 'Untitled') }; this._cc.set(n, c); return c; };
     const nodes = s.nodes.filter(n => !ci.hidden.has(n.id)).map(n => {
       const sz = n.main ? { w: MW, h: MH } : { w: NW, h: NH };

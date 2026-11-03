@@ -136,8 +136,12 @@ const scenarios = [
 const OLD = 'http://localhost:8101/index.html', NEW = 'http://localhost:8102/';
 const browser = await chromium.launch();
 
+// PDF export loads jsPDF 2.5.1 from cdnjs. If JSPDF points to a local copy of that
+// file (e.g. from `npm pack jspdf@2.5.1`), both versions get it from there.
+const JSPDF = process.env.JSPDF;
 const open = async (url, sc) => {
   const ctx = await browser.newContext({ viewport: sc.viewport || DESKTOP, locale: 'sv-SE', timezoneId: 'Europe/Stockholm', deviceScaleFactor: 1 });
+  if (JSPDF) await ctx.route('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: readFileSync(JSPDF) }));
   await ctx.addInitScript(initScript, { storage: sc.storage ? sc.storage(FIXTURE) : FIXTURE, T0, seed: 12345 });
   const page = await ctx.newPage();
   const errors = [];
@@ -221,6 +225,34 @@ if ('share'.includes(filter) || !filter) {
     const px = await pixelDiff(shots.old, shots.new);
     console.log((px.count === 0 ? 'OK  ' : 'FAIL') + ' viewer(' + from + ' link) old app vs new app, pixels:' + px.count);
     if (px.count !== 0) failures++;
+  }
+}
+
+// Exports: the downloaded files must be byte-identical.
+if ('export'.includes(filter) || !filter) {
+  const exportsToCheck = [
+    ['word-map', async (p) => { await p.getByText('Export ▾').click(); await p.getByText('Word document (.doc)').first().click(); }],
+    ['word-all', async (p) => { await p.getByText('Export ▾').click(); await p.getByText('Word document (.doc)').nth(1).click(); }],
+    ['pdf-map', async (p) => { await p.getByText('Export ▾').click(); await p.getByText('PDF', { exact: true }).first().click(); }],
+    ['pdf-all', async (p) => { await p.getByText('Export ▾').click(); await p.getByText('PDF', { exact: true }).nth(1).click(); }],
+    ['html-map', (p) => exportItem('Interactive map (.html)')(p)],
+    ['backup', (p) => exportItem('Download backup of everything')(p)],
+    ['word-box', async (p) => { await node(p, 'Psychology').dblclick(); await p.getByTitle('Download this box as a Word document').click(); }],
+    ['pdf-box', async (p) => { await node(p, 'Sleep').dblclick(); await p.getByTitle('Save this box as a PDF').click(); }]
+  ].filter(([n]) => !filter || ('export-' + n).includes(filter));
+  for (const [name, act] of exportsToCheck) {
+    const files = {};
+    for (const [k, url] of [['old', OLD], ['new', NEW]]) {
+      const o = await open(url, { name });
+      await o.page.evaluate(() => window.__reseed(99));
+      const [dl] = await Promise.all([o.page.waitForEvent('download', { timeout: 20000 }), act(o.page)]);
+      files[k] = { name: dl.suggestedFilename(), data: readFileSync(await dl.path()) };
+      writeFileSync(join(OUT, 'export-' + name + '-' + k + '-' + files[k].name), files[k].data);
+      await o.ctx.close();
+    }
+    const same = files.old.name === files.new.name && files.old.data.equals(files.new.data);
+    console.log((same ? 'OK  ' : 'FAIL') + ' export-' + name.padEnd(11) + ' ' + files.new.name + ' (' + files.new.data.length + ' bytes)' + (same ? ' identical' : ' DIFFERS from old (' + files.old.name + ', ' + files.old.data.length + ' bytes)'));
+    if (!same) failures++;
   }
 }
 
