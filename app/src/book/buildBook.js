@@ -30,12 +30,21 @@ export function buildBook({ nodes, edges, cats }) {
   nodes = nodes || []; edges = edges || [];
   const byId = {}; nodes.forEach(n => { byId[n.id] = n; });
   const catById = {}; (cats || []).forEach(c => { catById[c.id] = c; });
-  const tree = docTree(nodes, edges, 0, false);
+  // The notebook's own sibling order: a box may store bookOrder = [child ids].
+  // Children not in that list keep the default order, after the listed ones.
+  // Positions on the map are not used for this, so the map never changes.
+  const orderKids = (pid, ids) => {
+    const o = byId[pid] && byId[pid].bookOrder;
+    if (!Array.isArray(o) || !o.length) return ids;
+    const rank = (x) => { const i = o.indexOf(x); return i < 0 ? Infinity : i; };
+    return ids.slice().sort((a, b) => (rank(a) - rank(b)) || (ids.indexOf(a) - ids.indexOf(b)));
+  };
+  const tree = docTree(nodes, edges, 0, false, orderKids);
   if (!tree.main) return null;
 
   // Split the reading order into pages: each depth-1 item starts a chapter.
-  const pages = [{ box: tree.main, num: '', items: [] }];
-  tree.items.forEach(it => { if (it.depth === 1) pages.push({ box: it.n, num: it.num, items: [] }); else pages[pages.length - 1].items.push(it); });
+  const pages = [{ box: tree.main, num: '', items: [], parent: null }];
+  tree.items.forEach(it => { if (it.depth === 1) pages.push({ box: it.n, num: it.num, items: [], parent: it.parent }); else pages[pages.length - 1].items.push(it); });
   const pageOf = {};
   pages.forEach((p, i) => { pageOf[p.box.id] = i; p.items.forEach(it => { pageOf[it.n.id] = i; }); });
 
@@ -71,7 +80,7 @@ export function buildBook({ nodes, edges, cats }) {
     p.items.forEach(it => {
       const lvl = Math.min(4, it.depth);
       boxBlock(it.n, lvl, it.num, 'Subsection');
-      toc.push({ id: 'bk-' + it.n.id, num: it.num, title: label(it.n.id), level: lvl });
+      toc.push({ id: 'bk-' + it.n.id, box: it.n.id, parent: it.parent, num: it.num, title: label(it.n.id), level: lvl });
     });
 
     const conn = edges.filter(e => e.notes && e.notes.trim() && pageOf[e.from] === pi && byId[e.to]);
@@ -88,7 +97,7 @@ export function buildBook({ nodes, edges, cats }) {
       toc.push({ id, num: '', title: 'References', level: 2 });
       bank.forEach(r => search.push({ anchor: id, num: '', title: 'References', text: r.text }));
     }
-    return { id: p.box.id, num: p.num, title: label(p.box.id), blocks, html: blocks.map(blockToHtml).join(''), toc, search };
+    return { id: p.box.id, parent: p.parent, num: p.num, title: label(p.box.id), blocks, html: blocks.map(blockToHtml).join(''), toc, search };
   });
 
   return { title: label(tree.main.id), pages: built, pageOf };

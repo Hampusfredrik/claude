@@ -18,6 +18,7 @@ import { LINK_RE, links, plain } from '../text/links.js';
 import { richBlock, richLabel } from '../text/markdown.js';
 import { parseRefs, vancouver } from '../text/refs.js';
 import { buildBook } from '../book/buildBook.js';
+import { placeChild } from '../layout/place.js';
 
 export default class NotebookLogic extends DCLogic {
   undoStack = [];
@@ -733,6 +734,19 @@ export default class NotebookLogic extends DCLogic {
     }
     this.histPrev = { mapId: s.currentId, nodes: s.nodes, edges: s.edges, cats: s.cats, frames: s.frames };
   }
+  // A new box below parentId, placed so it fits the map (layout/place.js).
+  addChildPlaced(parentId) {
+    const s = this.state, p = s.nodes.find(n => n.id === parentId); if (!p) return null;
+    const gpId = this.parentOf(parentId), gp = gpId && s.nodes.find(n => n.id === gpId);
+    const at = placeChild(s.nodes, s.edges, p, gp, (n) => this.size(n));
+    const id = 'n' + Date.now();
+    this.setState({
+      nodes: s.nodes.concat([{ id: id, label: '', x: at.x, y: at.y, notes: '', refs: '', cat: p.main ? undefined : p.cat }]),
+      edges: s.edges.concat([{ id: 'e' + Date.now(), from: parentId, to: id, both: false, strength: 'thin' }]),
+      selNode: id, selEdge: null, editingId: null
+    });
+    return id;
+  }
   bookData() {
     const s = this.state, c = this._book;
     if (c && c.nodes === s.nodes && c.edges === s.edges && c.cats === s.cats) return c.book;
@@ -1184,8 +1198,10 @@ export default class NotebookLogic extends DCLogic {
         if (this.edNode === id) this.edNode = null;
         this.patchNode(id, { pages: ps, pageIdx: i, notes: ps[i].notes, refs: ps[i].refs });
       },
-      bookAdd: (parentId) => { const id = this.addLinked(parentId, false); if (id) this.setState({ bookTitleEdit: id, bookEditId: null, bookFocus: { id: id, t: Date.now() } }); },
+      bookAdd: (parentId) => { const id = this.addChildPlaced(parentId); if (id) this.setState({ bookTitleEdit: id, bookEditId: null, bookFocus: { id: id, t: Date.now() } }); },
       bookFocus: s.bookFocus || null,
+      // Order of a box's children in the notebook only (the map is not moved).
+      bookReorder: (parentId, ids) => this.patchNode(parentId, { bookOrder: ids }),
       toggleRefs: () => this.setState({ refsOpen: !s.refsOpen, tidyOpen: false, exportOpen: false }),
       closeRefs: () => this.setState({ refsOpen: false }),
       refList: s.refsOpen ? this.mapRefList() : [],

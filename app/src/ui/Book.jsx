@@ -87,7 +87,41 @@ export default function Book({ v }) {
   const [navOpen, setNavOpen] = useState(false);
   const [active, setActive] = useState(null);
   const [target, setTarget] = useState(null);
-  const [open, setOpen] = useState({}); // chapter index → sections shown in the sidebar (default: current chapter)
+  const [open, setOpen] = useState({});
+  const [drag, setDrag] = useState(null); // { parent, id, ids, over } while reordering in the sidebar
+  const side = useRef(null);
+  // Drag a chapter or section by its handle to change the notebook order.
+  // Only siblings can be reordered; the map is not changed.
+  const startDrag = (ev, parent, id, ids) => {
+    if (ev.button) return;
+    ev.preventDefault(); ev.stopPropagation();
+    const y0 = ev.clientY; let state = { parent, id, ids, over: null };
+    const rowsOf = () => Array.from(side.current ? side.current.querySelectorAll('[data-sib]') : []).filter(r => r.getAttribute('data-sib') === parent && r.getAttribute('data-sid') !== id);
+    const move = (e) => {
+      if (state.over == null && Math.abs(e.clientY - y0) < 4) return;
+      const rows = rowsOf(); let over = rows.length;
+      for (let i = 0; i < rows.length; i++) { const r = rows[i].getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { over = i; break; } }
+      state = Object.assign({}, state, { over }); setDrag(state);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+      setDrag(null);
+      if (state.over == null) return;
+      const rest = ids.filter(x => x !== id), next = rest.slice(0, state.over).concat([id], rest.slice(state.over));
+      if (next.join('\u0000') !== ids.join('\u0000')) v.bookReorder(parent, next);
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+    setDrag(state);
+  };
+  // Classes for a sidebar row while dragging: the dragged row, and the drop line.
+  const dragCls = (parent, id) => {
+    if (!drag || drag.parent !== parent) return '';
+    if (drag.id === id) return ' bk-dragging';
+    if (drag.over == null) return '';
+    const others = drag.ids.filter(x => x !== drag.id), i = others.indexOf(id);
+    return i === drag.over ? ' bk-drop-before' : (drag.over === others.length && i === others.length - 1 ? ' bk-drop-after' : '');
+  };
+  const grip = (parent, id, ids, name) => (ids.length > 1 ? <span className="bk-grip" title="Drag to change the order in the notebook (the map is not changed)" aria-label={'Move ' + name} onPointerDown={(e) => startDrag(e, parent, id, ids)}>⋮⋮</span> : null); // chapter index → sections shown in the sidebar (default: current chapter)
   const main = useRef(null);
   const pg = Math.min(page, book.pages.length - 1);
   const cur = book.pages[pg];
@@ -135,7 +169,7 @@ export default function Book({ v }) {
 
   return (
     <div className={'bk' + (navOpen ? ' bk-nav-open' : '')}>
-      <aside className="bk-side">
+      <aside className="bk-side" ref={side}>
         <div className="bk-side-top">
           <button type="button" className="bk-back" onClick={v.closeBook} title="Back to the map (Esc)">← Back to map</button>
         </div>
@@ -155,29 +189,40 @@ export default function Book({ v }) {
             {book.pages.map((p, i) => {
               const subs = p.toc.filter(t => t.num); // sections only, not Connections/References
               const isOpen = open[i] != null ? open[i] : i === pg;
+              const mainId = book.pages[0].id, chapterIds = book.pages.slice(1).filter(c => c.parent === mainId).map(c => c.id);
+              const canMove = i > 0 && p.parent === mainId;
               return (
                 <div key={p.id} className="bk-chapter-group">
-                  <div className={'bk-chapter-row' + (i === pg ? ' on' : '')}>
+                  <div className={'bk-chapter-row' + (i === pg ? ' on' : '') + (canMove ? dragCls(mainId, p.id) : '')} {...(canMove ? { 'data-sib': mainId, 'data-sid': p.id } : {})}>
+                    {canMove ? grip(mainId, p.id, chapterIds, p.title) : <span className="bk-grip-space" />}
                     <a href="#" className={'bk-chapter' + (i === pg ? ' on' : '')} onClick={(e) => { e.preventDefault(); go(i); }}>
                       {p.num ? <span className="bk-chapter-num">{p.num}</span> : null}<span>{p.title}</span>
                     </a>
-                    {subs.length ? (
+                    {subs.length || i > 0 ? (
                       <button type="button" className={'bk-toggle' + (isOpen ? ' open' : '')} aria-expanded={isOpen} aria-label={(isOpen ? 'Hide' : 'Show') + ' sections of ' + p.title}
                         onClick={() => setOpen(Object.assign({}, open, { [i]: !isOpen }))}>›</button>
                     ) : null}
                   </div>
-                  {subs.length && isOpen ? (
+                  {(subs.length || i > 0) && isOpen ? (
                     <div className="bk-subchapters">
-                      {subs.map(t => (
-                        <a key={t.id} href="#" className={'bk-subchapter bk-sub-l' + t.level + (i === pg && active === t.id ? ' on' : '')} onClick={(e) => { e.preventDefault(); go(i, t.id); }}>
-                          <span className="bk-chapter-num">{t.num}</span><span>{t.title}</span>
-                        </a>
-                      ))}
+                      {subs.map(t => {
+                        const sibs = subs.filter(x => x.parent === t.parent).map(x => x.box);
+                        return (
+                          <div key={t.id} className={'bk-subrow bk-sub-l' + t.level + dragCls(t.parent, t.box)} data-sib={t.parent} data-sid={t.box}>
+                            {grip(t.parent, t.box, sibs, t.title)}
+                            <a href="#" className={'bk-subchapter' + (i === pg && active === t.id ? ' on' : '')} onClick={(e) => { e.preventDefault(); go(i, t.id); }}>
+                              <span className="bk-chapter-num">{t.num}</span><span>{t.title}</span>
+                            </a>
+                          </div>
+                        );
+                      })}
+                      <button type="button" className="bk-add-row" onClick={() => v.bookAdd(p.id)} title="New box under this one (also on the map)">+ New section</button>
                     </div>
                   ) : null}
                 </div>
               );
             })}
+            <button type="button" className="bk-add-row bk-add-chapter" onClick={() => v.bookAdd(book.pages[0].id)} title="New main branch (also on the map)">+ New chapter</button>
           </nav>
         )}
       </aside>
