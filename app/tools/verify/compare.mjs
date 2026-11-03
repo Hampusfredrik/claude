@@ -290,7 +290,7 @@ if ('sync'.includes(filter) || !filter) {
       return route.fulfill({ status: 404, body: '{}' });
     });
     const page = await ctx.newPage();
-    await page.goto(url); await settle(page);
+    await page.goto(url); await page.addStyleTag({ content: '[data-verify-skip]{display:none!important}' }); await settle(page);
     await page.getByText('☰ Maps').click();
     await page.getByText('Sign in to sync').click();
     await page.getByPlaceholder('Email').fill(user.email);
