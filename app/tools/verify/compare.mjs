@@ -61,6 +61,7 @@ const normDom = () => {
   const walk = (n, d) => {
     if (n.nodeType === 3) { if (n.nodeValue.trim()) out.push('  '.repeat(d) + JSON.stringify(n.nodeValue)); return; }
     if (n.nodeType !== 1) return;
+    if (n.hasAttribute('data-verify-skip')) return; // features added after the port
     const attrs = [...n.attributes].filter(a => a.name !== 'data-dc-tpl' && a.name !== 'data-sc-name').map(a => {
       if (a.name === 'class') { const v = a.value.split(/\s+/).filter(c => c && c !== 'sc-interp').join(' '); return v ? 'class=' + JSON.stringify(v) : null; }
       return a.name + '=' + JSON.stringify(a.value);
@@ -147,6 +148,9 @@ const open = async (url, sc) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto(url);
+  // Features added after the port are marked data-verify-skip and hidden, so the
+  // rest of the app can still be compared with the deployed reference.
+  await page.addStyleTag({ content: '[data-verify-skip]{display:none!important}' });
   await settle(page, sc.wait);
   return { ctx, page, errors };
 };
@@ -286,7 +290,7 @@ if ('sync'.includes(filter) || !filter) {
       return route.fulfill({ status: 404, body: '{}' });
     });
     const page = await ctx.newPage();
-    await page.goto(url); await settle(page);
+    await page.goto(url); await page.addStyleTag({ content: '[data-verify-skip]{display:none!important}' }); await settle(page);
     await page.getByText('☰ Maps').click();
     await page.getByText('Sign in to sync').click();
     await page.getByPlaceholder('Email').fill(user.email);

@@ -17,6 +17,7 @@ import { fmtKey, insNL } from '../text/inputs.js';
 import { LINK_RE, links, plain } from '../text/links.js';
 import { richBlock, richLabel } from '../text/markdown.js';
 import { parseRefs, vancouver } from '../text/refs.js';
+import { buildBook } from '../book/buildBook.js';
 
 export default class NotebookLogic extends DCLogic {
   undoStack = [];
@@ -388,6 +389,8 @@ export default class NotebookLogic extends DCLogic {
     };
     document.addEventListener('pointerdown', this.onPopDown, true);
     this.onKey = (e) => {
+      // In the notebook view the map shortcuts are off; Esc goes back to the map.
+      if (this.state.bookOpen && !this.state.modalId) { if (e.key === 'Escape') this.setState({ bookOpen: false }); return; }
       const k = (e.key || '').toLowerCase();
       const code = e.code || '';
       if ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'y' || code === 'KeyZ' || code === 'KeyY')) {
@@ -722,6 +725,12 @@ export default class NotebookLogic extends DCLogic {
       }
     }
     this.histPrev = { mapId: s.currentId, nodes: s.nodes, edges: s.edges, cats: s.cats, frames: s.frames };
+  }
+  bookData() {
+    const s = this.state, c = this._book;
+    if (c && c.nodes === s.nodes && c.edges === s.edges && c.cats === s.cats) return c.book;
+    this._book = { nodes: s.nodes, edges: s.edges, cats: s.cats, book: buildBook(s) };
+    return this._book.book;
   }
   renderVals() {
     this.trackHistory();
@@ -1143,6 +1152,10 @@ export default class NotebookLogic extends DCLogic {
       clearMulti: () => this.setState({ multi: [], selectMode: false }),
       refsOpen: !!s.refsOpen,
       refsDyn: s.mobile ? 'left:12px;right:12px;top:64px;bottom:12px;width:auto;' : '',
+      book: s.bookOpen ? this.bookData() : null,
+      openBook: () => this.setState({ bookOpen: true, refsOpen: false, tidyOpen: false, exportOpen: false, mapSearch: false, mapQ: '', mapQIdx: null, selEdge: null, multi: [], editingId: null, toolsOpen: false }),
+      closeBook: () => this.setState({ bookOpen: false }),
+      bookEdit: (id) => this.setState({ modalId: id, selNode: id, tab: 'notes', notesEditing: false, editingId: null, selEdge: null }),
       toggleRefs: () => this.setState({ refsOpen: !s.refsOpen, tidyOpen: false, exportOpen: false }),
       closeRefs: () => this.setState({ refsOpen: false }),
       refList: s.refsOpen ? this.mapRefList() : [],
@@ -1178,7 +1191,7 @@ export default class NotebookLogic extends DCLogic {
       zoomOut: () => this.setState({ scale: Math.max(0.25, s.scale / 1.2) }),
       exportMap: () => this.exportMap(),
       undo: () => this.undo(),
-      mobileMenuBtn: !!s.mobile && !s.sidebarOpen,
+      mobileMenuBtn: !!s.mobile && !s.sidebarOpen && !s.bookOpen,
       menuDot: s.syncUser ? '#2f6f5e' : '#b8863b',
       toolbarWrapDyn: s.mobile ? 'left:12px;top:64px;' : 'right:' + (usedCats.length ? 230 : 20) + 'px;',
       modalScrollRef: (el) => { this.modalScrollEl = el; },
