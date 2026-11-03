@@ -63,3 +63,13 @@ Supabase-URL/nyckel, tabellen `notebook_items`, alla localStorage-nycklar
 `vn.xlinkMode`, `vn.viewer.panel`), formatet `#view=z<base64url(deflate(JSON))>`.
 
 Varje fungerande steg committas för sig.
+
+## Status
+
+Alla steg är genomförda (se commit-historiken på grenen):
+
+- [x] 1. Skelett, workflow
+- [x] 2. Port (mall → JSX, logikklass → modul, `support.js` används inte)
+- [x] 3. Verifiering mot `index.html` (`npm run verify`)
+- [x] 4. Modularisering (model, sync, layout, geometry, export, share, ai, text, editor, ui)
+- [x] 5. Vitest för layout, pilgeometri, `packShare`/`unpackShare`, synkens merge, wordcount
