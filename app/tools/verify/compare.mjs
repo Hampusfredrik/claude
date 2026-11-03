@@ -1,0 +1,212 @@
+// Side-by-side check of the port against the deployed reference build.
+//
+// Loads claude_code_handoff/source/index.html (the old, live app) and app/dist
+// (the new build) in Chromium with identical localStorage, a frozen clock and a
+// seeded Math.random, drives both through the same scenarios and compares
+//   1. the normalised DOM under #dc-root, and
+//   2. screenshots, pixel by pixel.
+// It also checks that share links (#view=) made by either version open in both.
+//
+// Usage (after `npm run build`): node tools/verify/compare.mjs [scenario-name-filter]
+// Output: tools/verify/out/<scenario>-{old,new,diff}.png and a summary on stdout.
+import { createServer } from 'node:http';
+import { readFileSync, mkdirSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { join, extname, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { storage as FIXTURE, T0 } from './fixture.mjs';
+
+const { chromium } = createRequire(import.meta.url)('playwright'); // from the environment, not an app dependency
+const here = dirname(fileURLToPath(import.meta.url));
+const OLD_DIR = join(here, '../../../claude_code_handoff/source');
+const NEW_DIR = join(here, '../../dist');
+const OUT = join(here, 'out');
+mkdirSync(OUT, { recursive: true });
+const filter = process.argv[2] || '';
+
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.map': 'application/json', '.svg': 'image/svg+xml' };
+const serve = (dir, port) => new Promise((res) => {
+  const srv = createServer((req, rsp) => {
+    let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    if (p.endsWith('/')) p += 'index.html';
+    const f = join(dir, p);
+    if (!f.startsWith(dir) || !existsSync(f) || !statSync(f).isFile()) { rsp.writeHead(404); rsp.end(); return; }
+    rsp.writeHead(200, { 'content-type': MIME[extname(f)] || 'application/octet-stream' });
+    rsp.end(readFileSync(f));
+  }).listen(port, () => res(srv));
+});
+
+// Runs in the page before any app code: same data, same time, same randomness.
+const initScript = ({ storage, T0, seed }) => {
+  if (!sessionStorage.getItem('__seeded')) {
+    localStorage.clear();
+    Object.entries(storage).forEach(([k, v]) => localStorage.setItem(k, v));
+    sessionStorage.setItem('__seeded', '1');
+  }
+  const RD = Date;
+  class FD extends RD { constructor(...a) { if (a.length) super(...a); else super(T0); } static now() { return T0; } }
+  FD.UTC = RD.UTC; FD.parse = RD.parse;
+  window.Date = FD;
+  let t = seed >>> 0;
+  // Libraries may draw random numbers at start-up a different number of times,
+  // so scenarios re-seed right before they run (window.__reseed).
+  window.__reseed = (s) => { t = s >>> 0; };
+  Math.random = () => { t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t); r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; };
+};
+
+const normDom = () => {
+  const root = document.querySelector('#dc-root');
+  if (!root) return '(no #dc-root)';
+  const out = [];
+  const walk = (n, d) => {
+    if (n.nodeType === 3) { if (n.nodeValue.trim()) out.push('  '.repeat(d) + JSON.stringify(n.nodeValue)); return; }
+    if (n.nodeType !== 1) return;
+    const attrs = [...n.attributes].filter(a => a.name !== 'data-dc-tpl' && a.name !== 'data-sc-name').map(a => {
+      if (a.name === 'class') { const v = a.value.split(/\s+/).filter(c => c && c !== 'sc-interp').join(' '); return v ? 'class=' + JSON.stringify(v) : null; }
+      return a.name + '=' + JSON.stringify(a.value);
+    }).filter(Boolean).sort();
+    out.push('  '.repeat(d) + '<' + n.localName + (attrs.length ? ' ' + attrs.join(' ') : '') + '>');
+    [...n.childNodes].forEach(c => walk(c, d + 1));
+  };
+  walk(root, 0);
+  return out.join('\n');
+};
+
+const settle = async (page, ms = 700) => {
+  await page.waitForSelector('.sc-host', { timeout: 15000 });
+  await page.evaluate(() => document.fonts && document.fonts.ready);
+  await page.waitForTimeout(ms);
+};
+
+const node = (page, label) => page.locator('[data-node]', { hasText: label }).first();
+const tidy = (label) => async (p) => { await p.getByText('Tidy ▾').click(); await p.getByText(label).click(); await p.waitForTimeout(600); };
+const exportItem = (label) => async (p) => { await p.getByText('Export ▾').click(); await p.getByText(label).click(); };
+
+const DESKTOP = { width: 1400, height: 900 }, MOBILE = { width: 390, height: 844 };
+const scenarios = [
+  { name: 'initial' },
+  { name: 'sidebar', run: (p) => p.getByText('☰ Maps').click() },
+  { name: 'sidebar-search', run: async (p) => { await p.getByText('☰ Maps').click(); await p.getByPlaceholder('Search all maps').fill('sleep'); } },
+  { name: 'dark', run: async (p) => { await p.getByText('☰ Maps').click(); await p.getByText('Dark mode').click(); } },
+  { name: 'help', run: (p) => p.getByText('? Tips').click() },
+  { name: 'tidy-menu', run: (p) => p.getByText('Tidy ▾').click() },
+  { name: 'export-menu', run: (p) => p.getByText('Export ▾').click() },
+  { name: 'legend', run: (p) => p.getByText('Categories').click() },
+  { name: 'select-node', run: (p) => node(p, 'Light exposure').click() },
+  { name: 'expand-collapsed', run: (p) => p.locator('[title="Expand downstream boxes"]').click() },
+  { name: 'modal-notes', run: (p) => node(p, 'Sleep').dblclick() },
+  { name: 'modal-refs', run: async (p) => { await node(p, 'Sleep').dblclick(); await p.locator('[data-float="modal"] button', { hasText: /^References$/ }).click(); } },
+  { name: 'modal-tabs', run: (p) => node(p, 'Psychology').dblclick() },
+  { name: 'edge-panel', run: (p) => p.locator('circle[r="8"]').first().dispatchEvent('pointerdown') },
+  { name: 'map-search', run: async (p) => { await p.keyboard.press('Control+f'); await p.waitForTimeout(100); await p.keyboard.type('stress'); } },
+  { name: 'refs-panel', run: (p) => p.locator('button', { hasText: /^References$/ }).first().click() },
+  { name: 'ai-dialog', run: exportItem('Import mind map from AI…') },
+  { name: 'follow-link', run: (p) => p.getByText('↪ Social life').click() },
+  { name: 'tidy-both', run: tidy('⟷  Mind map (both sides)') },
+  { name: 'tidy-right', run: tidy('→  Left to right') },
+  { name: 'tidy-down', run: tidy('↓  Top to bottom') },
+  { name: 'tidy-radial', run: tidy('◎  Radial') },
+  { name: 'tidy-random', run: tidy('⚄  Random shape') },
+  { name: 'add-box', run: async (p) => { await p.getByText('Add box').click(); await p.keyboard.type('Hello'); await p.keyboard.press('Enter'); } },
+  { name: 'undo-after-tidy', run: async (p) => { await tidy('↓  Top to bottom')(p); await p.getByTitle('Undo (Ctrl+Z)').click(); await p.waitForTimeout(300); } },
+  { name: 'welcome', storage: (s) => { const c = { ...s }; delete c['visual-notebook.welcomeSkip']; return c; }, wait: 1500 },
+  { name: 'mobile', viewport: MOBILE },
+  { name: 'mobile-sidebar', viewport: MOBILE, run: (p) => p.getByText('☰ Maps').click() },
+  { name: 'mobile-tools', viewport: MOBILE, run: (p) => p.getByText('Tools ▾').click() },
+  { name: 'mobile-modal', viewport: MOBILE, run: (p) => node(p, 'Biology').dblclick() }
+].filter(s => s.name.includes(filter));
+
+const OLD = 'http://localhost:8101/index.html', NEW = 'http://localhost:8102/';
+const browser = await chromium.launch();
+
+const open = async (url, sc) => {
+  const ctx = await browser.newContext({ viewport: sc.viewport || DESKTOP, locale: 'sv-SE', timezoneId: 'Europe/Stockholm', deviceScaleFactor: 1 });
+  await ctx.addInitScript(initScript, { storage: sc.storage ? sc.storage(FIXTURE) : FIXTURE, T0, seed: 12345 });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto(url);
+  await settle(page, sc.wait);
+  return { ctx, page, errors };
+};
+
+// Pixel diff in the browser (no extra npm dependencies needed).
+const diffPage = await (await browser.newContext()).newPage();
+const pixelDiff = (a, b) => diffPage.evaluate(async ({ a, b }) => {
+  const load = (s) => new Promise((r) => { const i = new Image(); i.onload = () => r(i); i.src = 'data:image/png;base64,' + s; });
+  const [ia, ib] = await Promise.all([load(a), load(b)]);
+  if (ia.width !== ib.width || ia.height !== ib.height) return { size: true, count: -1 };
+  const c = document.createElement('canvas'); c.width = ia.width; c.height = ia.height;
+  const x = c.getContext('2d');
+  x.drawImage(ia, 0, 0); const da = x.getImageData(0, 0, c.width, c.height);
+  x.drawImage(ib, 0, 0); const db = x.getImageData(0, 0, c.width, c.height);
+  const out = x.createImageData(c.width, c.height); let count = 0;
+  for (let i = 0; i < da.data.length; i += 4) {
+    const d = Math.max(Math.abs(da.data[i] - db.data[i]), Math.abs(da.data[i + 1] - db.data[i + 1]), Math.abs(da.data[i + 2] - db.data[i + 2]));
+    if (d > 8) { count++; out.data[i] = 255; out.data[i + 3] = 255; } else { out.data[i] = out.data[i + 1] = out.data[i + 2] = da.data[i] / 3 + 170; out.data[i + 3] = 255; }
+  }
+  x.putImageData(out, 0, 0);
+  return { count, png: c.toDataURL('image/png').split(',')[1] };
+}, { a: a.toString('base64'), b: b.toString('base64') });
+
+const firstDiff = (a, b) => {
+  const A = a.split('\n'), B = b.split('\n');
+  for (let i = 0; i < Math.max(A.length, B.length); i++) if (A[i] !== B[i]) return 'line ' + (i + 1) + '\n  old: ' + (A[i] || '(end)').slice(0, 300) + '\n  new: ' + (B[i] || '(end)').slice(0, 300);
+  return null;
+};
+
+const s1 = await serve(OLD_DIR, 8101), s2 = await serve(NEW_DIR, 8102);
+let failures = 0;
+for (const sc of scenarios) {
+  const res = {};
+  for (const [k, url] of [['old', OLD], ['new', NEW]]) {
+    const o = await open(url, sc);
+    try { await o.page.evaluate(() => window.__reseed(777)); if (sc.run) await sc.run(o.page); } catch (err) { o.errors.push('scenario step failed: ' + err.message.split('\n')[0]); }
+    await o.page.waitForTimeout(400);
+    res[k] = { dom: await o.page.evaluate(normDom), shot: await o.page.screenshot(), errors: o.errors };
+    writeFileSync(join(OUT, sc.name + '-' + k + '.png'), res[k].shot);
+    await o.ctx.close();
+  }
+  const domDiff = firstDiff(res.old.dom, res.new.dom);
+  const px = await pixelDiff(res.old.shot, res.new.shot);
+  if (px.png) writeFileSync(join(OUT, sc.name + '-diff.png'), Buffer.from(px.png, 'base64'));
+  const ok = !domDiff && px.count === 0 && !res.new.errors.length;
+  if (!ok) failures++;
+  console.log((ok ? 'OK  ' : 'FAIL') + ' ' + sc.name.padEnd(18) + ' dom:' + (domDiff ? 'DIFF' : 'same') + ' pixels:' + px.count + (res.new.errors.length ? ' errors(new): ' + res.new.errors.join(' | ') : '') + (res.old.errors.length ? ' errors(old): ' + res.old.errors.join(' | ') : ''));
+  if (domDiff) console.log('     ' + domDiff.replace(/\n/g, '\n     '));
+}
+
+// Share links: a #view= code made by one version must open in the other.
+if ('share'.includes(filter) || !filter) {
+  const codes = {};
+  for (const [k, url] of [['old', OLD], ['new', NEW]]) {
+    const o = await open(url, { name: 'share' });
+    await exportItem('Share read-only link…')(o.page);
+    await o.page.waitForFunction(() => { const i = document.querySelector('input[readonly]'); return i && i.value.includes('#view='); }, null, { timeout: 10000 });
+    codes[k] = (await o.page.locator('input[readonly]').inputValue()).split('#view=')[1];
+    await o.ctx.close();
+  }
+  console.log((codes.old === codes.new ? 'OK  ' : 'FAIL') + ' share-code        identical #view= code from both versions (' + codes.old.length + ' chars)');
+  if (codes.old !== codes.new) failures++;
+  for (const from of ['old', 'new']) {
+    const shots = {};
+    for (const [k, url] of [['old', OLD], ['new', NEW]]) {
+      const ctx = await browser.newContext({ viewport: DESKTOP, locale: 'sv-SE', timezoneId: 'Europe/Stockholm' });
+      await ctx.addInitScript(initScript, { storage: FIXTURE, T0, seed: 1 });
+      const page = await ctx.newPage();
+      await page.goto(url + '#view=' + codes[from]);
+      await page.waitForSelector('#surf .node', { timeout: 15000 });
+      await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(500);
+      shots[k] = await page.screenshot();
+      writeFileSync(join(OUT, 'viewer-' + from + 'code-' + k + '.png'), shots[k]);
+      await ctx.close();
+    }
+    const px = await pixelDiff(shots.old, shots.new);
+    console.log((px.count === 0 ? 'OK  ' : 'FAIL') + ' viewer(' + from + ' link) old app vs new app, pixels:' + px.count);
+    if (px.count !== 0) failures++;
+  }
+}
+
+await browser.close(); s1.close(); s2.close();
+console.log(failures ? '\n' + failures + ' check(s) differ' : '\nAll checks identical');
+process.exit(failures ? 1 : 0);

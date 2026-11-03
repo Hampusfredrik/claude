@@ -1,0 +1,54 @@
+/* App styles, moved from the <helmet><style> block of "Visual Notebook.dc.html". */
+  html, body { margin: 0; padding: 0; background: #f1f2f6; color: #2a2724; font-family: Karla, system-ui, sans-serif; height: 100%; overflow: hidden; overscroll-behavior: none; }
+  @media (max-width: 760px) { input, textarea, select { font-size: 16px !important; } }
+  * { -webkit-font-smoothing: antialiased; }
+  a { color: #2f6f5e; }
+  a:hover { color: #24564a; }
+  textarea, input, button { font-family: inherit; }
+  textarea:focus, input:focus, [data-ed]:focus { outline: 2px solid rgba(47,111,94,0.35); outline-offset: 1px; }
+  [data-ed]:empty:before { content: attr(data-ph); color: #a2a4b4; pointer-events: none; }
+  [data-ed] h1 { font-family: Karla, system-ui, sans-serif; font-size: 23px; line-height: 1.25; font-weight: 600; margin: 14px 0 6px; }
+  [data-ed] h2 { font-family: Karla, system-ui, sans-serif; font-size: 18px; line-height: 1.3; font-weight: 600; margin: 12px 0 4px; }
+  [data-ed] h3 { font-size: 15px; font-weight: 700; margin: 10px 0 2px; }
+  [data-ed] > :first-child { margin-top: 0; }
+  ::highlight(mapq) { background-color: #f6dd8e; color: inherit; } ::highlight(mapq1) { background-color: #e5b84a; color: #2a2724; }
+  [data-ed] ol ol { list-style-type: lower-alpha; } [data-ed] ol ol ol { list-style-type: lower-roman; } [data-ed] ol ol ol ol { list-style-type: decimal; }
+  [data-ed] ul, [data-ed] ol { margin: 2px 0 8px; padding-left: 22px; }
+  [data-ed] li { margin: 2px 0; }
+  [data-ed] ul ul { list-style-type: circle; margin: 2px 0; }
+  [data-ed] ul ul ul { list-style-type: square; }
+  [data-ed] [data-img] { margin: 8px 0; position: relative; width: fit-content; max-width: 100%; }
+  [data-ed] [data-img] img { display: block; max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e0e1ea; box-sizing: border-box; }
+  [data-ed] [data-img][style*="width"] img { width: 100%; }
+  [data-ed] [data-img] img { cursor: grab; -webkit-user-drag: none; user-select: none; touch-action: none; }
+  [data-ed] [data-img][data-moving] { opacity: .35; }
+  [data-ed] [data-img][data-caret]::after { content: ''; position: absolute; right: -5px; top: 2px; bottom: 2px; width: 2px; background: #2a2724; animation: vnImgCaret 1s step-end infinite; }
+  @keyframes vnImgCaret { 50% { opacity: 0; } }
+  [data-ed] [data-rz] { position: absolute; right: -6px; bottom: -6px; width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid #2f6f5e; box-sizing: border-box; cursor: nwse-resize; opacity: 0; transition: opacity .15s; touch-action: none; }
+  [data-ed] [data-img]:hover [data-rz], [data-ed] [data-img][data-rzing] [data-rz] { opacity: 1; }
+  @media (hover: none) { [data-ed] [data-rz] { opacity: .8; width: 22px; height: 22px; right: -9px; bottom: -9px; } }
+  [data-ed] sup[data-cite] { font-size: .72em; line-height: 0; color: #2f6f5e; font-weight: 600; padding: 0 1px; cursor: default; }
+  [data-ed] sup[data-cite][data-missing] { color: #b4532a; }
+  [data-ed] span[data-link] { color: #2f6f5e; border-bottom: 1px dashed #2f6f5e; cursor: pointer; }
+  [data-ed] span[data-link]:before { content: '\2197\00a0'; }
+  html[data-theme="dark"], html[data-theme="dark"] body { background: #29292b; }
+  html[data-theme="dark"] img { filter: invert(1) hue-rotate(180deg); }
+
+/* Page frame and print rules that the old dc-runtime (support.js) added. */
+html,body{height:100%;margin:0}#dc-root,#dc-root>.sc-host{height:100%}
+.sc-host.sc-has-error{position:relative}
+.sc-logic-error{position:absolute;top:8px;left:8px;z-index:2147483647;max-width:60ch;
+  padding:6px 10px;background:#b00020;color:#fff;font:12px/1.4 ui-monospace,monospace;
+  border-radius:4px;white-space:pre-wrap;pointer-events:none}
+@media print {
+  @page { margin: 0.5cm; }
+  figure, table { break-inside: avoid; }
+  #dc-root, #dc-root > .sc-host { height: auto; }
+  *, *::before, *::after {
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+    animation-delay: -99s !important; animation-duration: .001s !important;
+    animation-iteration-count: 1 !important; animation-fill-mode: both !important;
+    animation-play-state: running !important; transition-duration: 0s !important;
+  }
+}
