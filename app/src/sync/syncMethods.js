@@ -4,7 +4,7 @@ import { IDX, SYNC_META, SYNC_PREFIX, mk } from '../model/constants.js';
 import { blankMap, findUnlistedMaps, loadCats, migrateCats, readJSON } from '../model/storage.js';
 import { createClient } from '@supabase/supabase-js';
 import { SB_KEY, SB_URL } from './config.js';
-import { pushPlan, afterPush, mergePull } from './merge.js';
+import { pushPlan, afterPush, mergePull, mergeIndex } from './merge.js';
 // localStorage seen through the sync prefix (see merge.js).
 const localView = () => ({
   keys: () => Object.keys(window.localStorage).filter(k => k.startsWith(SYNC_PREFIX)),
@@ -84,9 +84,22 @@ export const syncMethods = {
         if (keep) Object.keys(window.localStorage).filter(k => k.startsWith(SYNC_PREFIX)).forEach(k => { m.t[k] = Date.now(); m.dirty[k] = m.t[k]; });
       }
       m.user = uid;
-      const r = mergePull(m, data, localView(), first);
+      // The map list is merged, not replaced: a device that started with empty
+      // storage must never hide maps or folders that are in the account. Its own
+      // untouched placeholder map ("Main topic", nothing else) is dropped then.
+      const dropped = [];
+      const combine = { [IDX]: (localText, remoteText) => {
+        let L, R; try { L = JSON.parse(localText); R = JSON.parse(remoteText); } catch (e) { return null; }
+        if (!L || !R || !Array.isArray(L.maps) || !Array.isArray(R.maps) || !R.maps.length) return mergeIndex(localText, remoteText);
+        const inRemote = new Set(R.maps.map(x => x.id));
+        const blank = (d) => !!d && Array.isArray(d.nodes) && d.nodes.length === 1 && !(d.edges || []).length && !(d.frames || []).length && d.nodes[0].label === 'Main topic' && !d.nodes[0].notes && !d.nodes[0].refs && !d.nodes[0].pages;
+        L.maps.forEach(x => { if (!inRemote.has(x.id) && blank(readJSON(mk(x.id)))) dropped.push(x.id); });
+        return mergeIndex(JSON.stringify(Object.assign({}, L, { maps: L.maps.filter(x => dropped.indexOf(x.id) < 0) })), remoteText);
+      } };
+      const r = mergePull(m, data, localView(), first, Date.now, combine);
       r.sets.forEach(([k, v]) => this._rawSet(k, v));
       r.removes.forEach(k => this._rawRem(k));
+      dropped.forEach(id => { this._rawRem(mk(id)); delete m.dirty[mk(id)]; delete m.t[mk(id)]; delete m.synced[mk(id)]; });
       const changed = r.changed;
       this.writeMeta(m);
       // Put maps back in the list if they are stored but not listed (see findUnlistedMaps).

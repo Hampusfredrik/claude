@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergePull, pushPlan, afterPush } from '../src/sync/merge.js';
+import { mergePull, pushPlan, afterPush, mergeIndex } from '../src/sync/merge.js';
 
 const P = 'visual-notebook.';
 const view = (store) => ({ keys: () => Object.keys(store).filter(k => k.startsWith(P)), get: (k) => (k in store ? store[k] : null) });
@@ -121,5 +121,45 @@ describe('mergePull equals the original rules', () => {
       const got = mergePull(clone(m), rows, view(store), first, now);
       expect({ store: apply(clone(store), got), m: got.meta, changed: got.changed }).toEqual(ref);
     }
+  });
+});
+
+describe('map list merge (index)', () => {
+  const idx = (maps, folders, current) => JSON.stringify({ maps, current: current || (maps[0] && maps[0].id), folders: folders || [] });
+  it('keeps the maps and folders of both lists', () => {
+    const local = idx([{ id: 'm9', title: 'New here', updated: 50 }], []);
+    const remote = idx([{ id: 'm1', title: 'Sleep', updated: 10, folder: 'f1' }, { id: 'm2', title: 'Garden', updated: 20 }], [{ id: 'f1', name: 'Work', open: true }]);
+    const r = JSON.parse(mergeIndex(local, remote));
+    expect(r.maps.map(m => [m.id, m.folder || null])).toEqual([['m1', 'f1'], ['m2', null], ['m9', null]]);
+    expect(r.folders).toEqual([{ id: 'f1', name: 'Work', open: true }]);
+    expect(r.current).toBe('m9');
+  });
+  it('keeps a folder from either side and the newer title', () => {
+    const local = idx([{ id: 'm1', title: 'Sleep v2', updated: 30, folder: 'f2' }], [{ id: 'f2', name: 'Mine' }]);
+    const remote = idx([{ id: 'm1', title: 'Sleep', updated: 10 }], []);
+    const r = JSON.parse(mergeIndex(local, remote));
+    expect(r.maps).toEqual([{ id: 'm1', title: 'Sleep v2', updated: 30, folder: 'f2' }]);
+    expect(r.folders.map(f => f.id)).toEqual(['f2']);
+  });
+  it('returns null for unreadable lists', () => {
+    expect(mergeIndex('{', '[]')).toBeNull();
+  });
+  it('mergePull merges the list instead of letting the newer one win, and pushes the result', () => {
+    const K = P + 'index';
+    const store = { [K]: idx([{ id: 'm9', title: 'New', updated: 900 }]) };
+    const m = meta({ t: { [K]: 900 }, dirty: { [K]: 900 } });
+    const rows = [{ key: K, value: idx([{ id: 'm1', title: 'Old', updated: 5, folder: 'f1' }], [{ id: 'f1', name: 'Work' }]), updated_at: 100 }];
+    const r = mergePull(m, rows, view(store), false, () => 1000, { [K]: mergeIndex });
+    const merged = JSON.parse(r.sets[0][1]);
+    expect(merged.maps.map(x => x.id)).toEqual(['m1', 'm9']);
+    expect(merged.folders.map(f => f.name)).toEqual(['Work']);
+    expect(r.meta.dirty[K]).toBe(1000);
+  });
+  it('without unpushed local changes the server list is simply taken', () => {
+    const K = P + 'index';
+    const store = { [K]: idx([{ id: 'm9', title: 'New' }]) };
+    const rows = [{ key: K, value: idx([{ id: 'm1', title: 'Old' }]), updated_at: 100 }];
+    const r = mergePull(meta(), rows, view(store), false, now, { [K]: mergeIndex });
+    expect(r.sets).toEqual([[K, rows[0].value]]);
   });
 });
