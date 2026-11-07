@@ -23,7 +23,7 @@
 .vn-start-plus { font-size: 24px; line-height: 1; font-weight: 400; }
 .vn-start-none { color: #6a6c7e; font-size: 15px; margin-top: 24px; }
 @media (max-width: 760px) {
-  .vn-start-inner { padding: 28px 16px 48px; }
+  .vn-start-inner { padding: 72px 16px 48px; } /* room for the "☰ Maps" button */
   .vn-start-head h1 { font-size: 28px; }
   .vn-start-search { width: 100%; }
   .vn-start-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }

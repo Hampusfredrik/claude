@@ -21,6 +21,8 @@ import { buildBook } from '../book/buildBook.js';
 import { placeChild } from '../layout/place.js';
 import { bookHtml } from '../export/bookHtml.js';
 
+const startOnLoad = () => { try { return !/^#view=/.test(location.hash) && !sessionStorage.getItem('vn-skip-start'); } catch (err) { return true; } };
+
 export default class NotebookLogic extends DCLogic {
   undoStack = [];
   redoStack = [];
@@ -55,12 +57,13 @@ export default class NotebookLogic extends DCLogic {
     this.hadSaved = !!(saved && saved.nodes && saved.nodes.length && (saved.tx || saved.ty));
     const d = saved && saved.nodes ? saved : blankMap();
     this.state = {
-      maps: idx.maps, folders: idx.folders || [], currentId: cur, sidebarOpen: false, mobile: window.innerWidth < 760,
+      maps: idx.maps, folders: idx.folders || [], currentId: cur, sidebarOpen: startOnLoad() && window.innerWidth >= 760, mobile: window.innerWidth < 760,
       nodes: d.nodes, edges: d.edges || [], frames: d.frames || [],
       tx: d.tx || 0, ty: d.ty || 0, scale: d.scale || 1,
-      // Start page with all maps: shown when the site is opened (once per tab, so a
-      // reload while working stays in the map). Never for #view= share links.
-      startOpen: (() => { try { if (/^#view=/.test(location.hash) || sessionStorage.getItem('vn-start-shown')) return false; sessionStorage.setItem('vn-start-shown', '1'); } catch (err) {} return true; })(),
+      // Start page with all maps: shown every time the site is opened, next to the
+      // sidebar (on phones the "☰ Maps" button opens it). Never for #view= share links.
+      // (sessionStorage "vn-skip-start" turns it off; used by tools/verify.)
+      startOpen: startOnLoad(),
       selNode: null, selEdge: null, modalId: null, tab: 'notes', dark: (() => { let d = false; try { d = localStorage.getItem('visual-notebook.theme') === 'dark'; } catch (err) {} document.documentElement.dataset.theme = d ? 'dark' : 'light'; return d; })(),
       linkFrom: null, linkPt: null, editingId: null, saved: 'Saved',
       cats: d.cats ? migrateCats(d.cats) : loadCats(), query: '', editCat: null
@@ -1291,7 +1294,7 @@ export default class NotebookLogic extends DCLogic {
       zoomOut: () => this.setState({ scale: Math.max(0.25, s.scale / 1.2) }),
       exportMap: () => this.exportMap(),
       undo: () => this.undo(),
-      mobileMenuBtn: !!s.mobile && !s.sidebarOpen && !s.bookOpen && !s.startOpen,
+      mobileMenuBtn: !!s.mobile && !s.sidebarOpen && !s.bookOpen,
       menuDot: s.syncUser ? '#2f6f5e' : '#b8863b',
       toolbarWrapDyn: s.mobile ? 'left:12px;top:64px;' : 'right:' + (usedCats.length ? 230 : 20) + 'px;',
       modalScrollRef: (el) => { this.modalScrollEl = el; },
