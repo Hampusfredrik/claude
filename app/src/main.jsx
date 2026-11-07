@@ -7,6 +7,7 @@ import './styles/pseudo.css';
 import './styles/fonts.css';
 import './styles/global.css';
 import './styles/book.css';
+import './styles/start.css';
 
 createRoot(document.getElementById('dc-root')).render(
   <LogicHost logic={NotebookLogic} template={App} showGrid={true} />

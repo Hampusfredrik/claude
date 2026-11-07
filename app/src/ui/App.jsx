@@ -15,6 +15,7 @@ import BoxDialog from './BoxDialog.jsx';
 import AiImportDialog from './AiImportDialog.jsx';
 import ShareDialog from './ShareDialog.jsx';
 import Book from './Book.jsx';
+import StartPage from './StartPage.jsx';
 
 export default function App({ v }) {
   return (
@@ -48,6 +49,7 @@ export default function App({ v }) {
         {v.selEdgeData ? <ArrowPanel v={v} /> : null}
         {" "}
         {v.book ? <Book v={v} /> : null}
+        {v.start ? <StartPage v={v} /> : null}
         {v.showWelcome ? <Welcome v={v} /> : null}
         {" "}
         {v.modal ? <BoxDialog v={v} /> : null}

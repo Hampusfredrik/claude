@@ -58,6 +58,9 @@ export default class NotebookLogic extends DCLogic {
       maps: idx.maps, folders: idx.folders || [], currentId: cur, sidebarOpen: false, mobile: window.innerWidth < 760,
       nodes: d.nodes, edges: d.edges || [], frames: d.frames || [],
       tx: d.tx || 0, ty: d.ty || 0, scale: d.scale || 1,
+      // Start page with all maps: shown when the site is opened (once per tab, so a
+      // reload while working stays in the map). Never for #view= share links.
+      startOpen: (() => { try { if (/^#view=/.test(location.hash) || sessionStorage.getItem('vn-start-shown')) return false; sessionStorage.setItem('vn-start-shown', '1'); } catch (err) {} return true; })(),
       selNode: null, selEdge: null, modalId: null, tab: 'notes', dark: (() => { let d = false; try { d = localStorage.getItem('visual-notebook.theme') === 'dark'; } catch (err) {} document.documentElement.dataset.theme = d ? 'dark' : 'light'; return d; })(),
       linkFrom: null, linkPt: null, editingId: null, saved: 'Saved',
       cats: d.cats ? migrateCats(d.cats) : loadCats(), query: '', editCat: null
@@ -236,7 +239,7 @@ export default class NotebookLogic extends DCLogic {
       nodes: d.nodes || [], edges: d.edges || [], frames: d.frames || [],
       cats: d.cats ? migrateCats(d.cats) : loadCats(),
       tx: fresh ? r.width / 2 : d.tx, ty: fresh ? r.height / 2 : d.ty, scale: d.scale || 1,
-      selNode: null, selEdge: null, modalId: null, editingId: null, linkFrom: null, linkPt: null, saved: 'Saved'
+      selNode: null, selEdge: null, modalId: null, editingId: null, linkFrom: null, linkPt: null, saved: 'Saved', startOpen: false
     });
   }
   componentDidMount() {
@@ -393,6 +396,11 @@ export default class NotebookLogic extends DCLogic {
     this.onKey = (e) => {
       // In the notebook view the map shortcuts are off. Esc stops editing, or
       // goes back to the map; Ctrl+Z / Ctrl+Shift+Z undo outside text fields.
+      if (this.state.startOpen && !this.state.modalId) {
+        const t = e.target, typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || ''));
+        if (e.key === 'Escape' && !typing) this.setState({ startOpen: false });
+        return;
+      }
       if (this.state.bookOpen && !this.state.modalId) {
         const t = e.target, typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || ''));
         if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (typing || this.state.bookEditId || this.state.bookTitleEdit) { if (t && t.blur) t.blur(); this.setState({ bookEditId: null, bookTitleEdit: null }); } else this.setState({ bookOpen: false }); return; }
@@ -977,7 +985,7 @@ export default class NotebookLogic extends DCLogic {
         // Each map is a card (tinted green, see Sidebar.jsx); the open map is white and outlined.
         dyn: (indent ? 'margin-left:14px;' : '') + (on ? 'background:#fcfcfd;border-color:' + ac + ';box-shadow:inset 3px 0 0 ' + ac + ',0 1px 4px rgba(42,39,36,.08);' : '') + (dragOver ? outline : '') + (s.dragMapFrom === m.id ? 'opacity:0.45;' : ''),
         titleDyn: on ? 'font-weight:600;' : 'font-weight:500;',
-        onOpen: () => { if (this.state.mobile) this.setState({ sidebarOpen: false }); if (on) return; const maps = this.saveNow(); this.openMap(m.id, maps); },
+        onOpen: () => { if (this.state.mobile) this.setState({ sidebarOpen: false }); if (this.state.startOpen) this.setState({ startOpen: false }); if (on) return; const maps = this.saveNow(); this.openMap(m.id, maps); },
         onDelete: (ev) => {
           ev.stopPropagation();
           if (!window.confirm('Delete "' + (on ? liveTitle : m.title) + '"? This cannot be undone.')) return;
@@ -1031,6 +1039,20 @@ export default class NotebookLogic extends DCLogic {
       if (f.open !== false && !inF.length) rows.push({ key: 'e' + f.id, isZone: true, isFolder: false, isMap: false, zoneText: 'Empty. Drag maps here.', zDyn: 'margin-left:14px;border-left:2px solid #cacdda;border-radius:0;font-style:italic;', onZOver: (ev) => { if (s.dragMapFrom) ev.preventDefault(); }, onZDrop: (ev) => { ev.preventDefault(); const fm = this.state.dragMapFrom; this.setState(endDrag); if (fm) putMap(fm, f.id, null); } });
     });
     const loose = s.maps.filter(m => !fOf(m));
+    // Start page: every map as a card, by folder.
+    let start = null;
+    if (s.startOpen) {
+      const sq = (s.startQ || '').trim().toLowerCase();
+      const card = (m) => {
+        const on = m.id === s.currentId, d = on ? { nodes: s.nodes } : (readJSON(mk(m.id)) || {}), title = on ? liveTitle : m.title;
+        return { id: m.id, title: title || 'Untitled map', meta: fmt(m.updated), boxes: (d.nodes || []).length, current: on };
+      };
+      const match = (c) => !sq || c.title.toLowerCase().indexOf(sq) >= 0;
+      const groups = folders.map(f => ({ id: f.id, name: f.name || 'Untitled folder', maps: s.maps.filter(m => fOf(m) === f.id).map(card).filter(match) })).filter(g => g.maps.length);
+      const rest = loose.map(card).filter(match);
+      if (rest.length) groups.push({ id: '', name: folders.length ? 'Not in a folder' : '', maps: rest });
+      start = { groups: groups, query: s.startQ || '', count: s.maps.length, empty: !groups.length };
+    }
     if (folders.length && (loose.length || s.dragMapFrom)) {
       const over = s.dragOver === 'z' && !!s.dragMapFrom;
       rows.push({ key: 'zone', isZone: true, isFolder: false, isMap: false, zoneText: 'Not in a folder', zDyn: 'margin-top:16px;border-top:1px solid #dcdee6;border-radius:0;padding-top:12px;text-transform:uppercase;letter-spacing:.05em;font-size:11px;' + (over ? outline : ''),
@@ -1188,6 +1210,12 @@ export default class NotebookLogic extends DCLogic {
       clearMulti: () => this.setState({ multi: [], selectMode: false }),
       refsOpen: !!s.refsOpen,
       refsDyn: s.mobile ? 'left:12px;right:12px;top:64px;bottom:12px;width:auto;' : '',
+      start: start,
+      openStart: () => { if (this.state.mobile) this.setState({ sidebarOpen: false }); this.setState({ startOpen: true, startQ: '', bookOpen: false, refsOpen: false, tidyOpen: false, exportOpen: false, selEdge: null, multi: [], editingId: null, modalId: null }); },
+      closeStart: () => this.setState({ startOpen: false }),
+      startQuery: (ev) => this.setState({ startQ: ev.target.value }),
+      startOpenMap: (id) => { if (id !== this.state.currentId) { const maps = this.saveNow(); this.openMap(id, maps); } this.setState({ startOpen: false }); },
+      startNewMap: () => { this.createMap(null); this.setState({ startOpen: false }); },
       book: s.bookOpen ? this.bookData() : null,
       openBook: () => this.setState({ bookOpen: true, refsOpen: false, tidyOpen: false, exportOpen: false, mapSearch: false, mapQ: '', mapQIdx: null, selEdge: null, multi: [], editingId: null, toolsOpen: false }),
       exportBook: () => { this.setState({ exportOpen: false }); this.exportBook(); },
@@ -1253,7 +1281,7 @@ export default class NotebookLogic extends DCLogic {
       zoomOut: () => this.setState({ scale: Math.max(0.25, s.scale / 1.2) }),
       exportMap: () => this.exportMap(),
       undo: () => this.undo(),
-      mobileMenuBtn: !!s.mobile && !s.sidebarOpen && !s.bookOpen,
+      mobileMenuBtn: !!s.mobile && !s.sidebarOpen && !s.bookOpen && !s.startOpen,
       menuDot: s.syncUser ? '#2f6f5e' : '#b8863b',
       toolbarWrapDyn: s.mobile ? 'left:12px;top:64px;' : 'right:' + (usedCats.length ? 230 : 20) + 'px;',
       modalScrollRef: (el) => { this.modalScrollEl = el; },

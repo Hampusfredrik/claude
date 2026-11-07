@@ -1,0 +1,31 @@
+/* Start page with all maps (ui/StartPage.jsx). */
+.vn-start { position: absolute; inset: 0; overflow-y: auto; background: #f1f2f6; font-family: Karla, system-ui, sans-serif; color: #2a2724; }
+.vn-start-inner { max-width: 1040px; margin: 0 auto; padding: 48px 32px 64px; box-sizing: border-box; }
+.vn-start-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 26px; }
+.vn-start-head h1 { font-size: 34px; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }
+.vn-start-head p { margin: 0; color: #6a6c7e; font-size: 15px; }
+.vn-start-search { width: 260px; max-width: 100%; box-sizing: border-box; border: 1px solid #dcdee6; background: #fcfcfd; border-radius: 10px; padding: 9px 12px; font-size: 14px; color: #2a2724; font-family: inherit; }
+.vn-start-group { margin-top: 26px; }
+.vn-start-group h2 { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #46485a; margin: 0 0 10px; }
+.vn-start-folder { width: 14px; height: 11px; border: 1.8px solid #2f6f5e; border-radius: 2px 3px 3px 3px; box-sizing: border-box; display: inline-block; }
+.vn-start-count { font-weight: 600; color: #7e8091; letter-spacing: 0; }
+.vn-start-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.vn-start-card { position: relative; display: flex; flex-direction: column; gap: 6px; text-align: left; min-height: 96px; box-sizing: border-box; padding: 14px 16px; border-radius: 12px; border: 1px solid #c9dfd2; background: #eaf3ee; color: inherit; font-family: inherit; cursor: pointer; transition: box-shadow .12s, transform .12s, background .12s; }
+.vn-start-card:hover { background: #fcfcfd; box-shadow: 0 6px 18px rgba(42, 39, 36, .10); transform: translateY(-1px); }
+.vn-start-card:focus-visible { outline: 2px solid rgba(47, 111, 94, .5); outline-offset: 2px; }
+.vn-start-card.current { background: #fcfcfd; border-color: #2f6f5e; box-shadow: inset 3px 0 0 #2f6f5e; }
+.vn-start-title { font-size: 16.5px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.vn-start-meta { margin-top: auto; font-size: 12.5px; color: #5e6072; }
+.vn-start-badge { position: absolute; top: 10px; right: 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #2f6f5e; }
+.vn-start-card.current .vn-start-title { padding-right: 76px; }
+.vn-start-new { border: 1.5px dashed #9dbdb0; background: transparent; align-items: center; justify-content: center; flex-direction: row; color: #2f6f5e; }
+.vn-start-new .vn-start-title { font-size: 16px; }
+.vn-start-plus { font-size: 24px; line-height: 1; font-weight: 400; }
+.vn-start-none { color: #6a6c7e; font-size: 15px; margin-top: 24px; }
+@media (max-width: 760px) {
+  .vn-start-inner { padding: 28px 16px 48px; }
+  .vn-start-head h1 { font-size: 28px; }
+  .vn-start-search { width: 100%; }
+  .vn-start-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .vn-start-card { min-height: 84px; padding: 12px 13px; }
+}

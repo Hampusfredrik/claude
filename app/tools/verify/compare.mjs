@@ -42,6 +42,7 @@ const initScript = ({ storage, T0, seed }) => {
     localStorage.clear();
     Object.entries(storage).forEach(([k, v]) => localStorage.setItem(k, v));
     sessionStorage.setItem('__seeded', '1');
+    sessionStorage.setItem('vn-start-shown', '1'); // the start page (added after the port) is not part of the comparison
   }
   const RD = Date;
   class FD extends RD { constructor(...a) { if (a.length) super(...a); else super(T0); } static now() { return T0; } }
