@@ -1,7 +1,7 @@
 // Supabase sync: localStorage is the cache, every "visual-notebook.*" key is
 // mirrored as a row in notebook_items (user_id, key, value, updated_at).
 import { IDX, SYNC_META, SYNC_PREFIX, mk } from '../model/constants.js';
-import { blankMap, loadCats, migrateCats, readJSON } from '../model/storage.js';
+import { blankMap, findUnlistedMaps, loadCats, migrateCats, readJSON } from '../model/storage.js';
 import { createClient } from '@supabase/supabase-js';
 import { SB_KEY, SB_URL } from './config.js';
 import { pushPlan, afterPush, mergePull } from './merge.js';
@@ -89,7 +89,10 @@ export const syncMethods = {
       r.removes.forEach(k => this._rawRem(k));
       const changed = r.changed;
       this.writeMeta(m);
-      if (changed) this.reloadFromStorage();
+      // Put maps back in the list if they are stored but not listed (see findUnlistedMaps).
+      const idx = readJSON(IDX), lost = findUnlistedMaps(Object.keys(window.localStorage), idx, readJSON, (k) => m.t[k]);
+      if (idx && idx.maps && lost.length) { window.localStorage.setItem(IDX, JSON.stringify(Object.assign({}, idx, { maps: idx.maps.concat(lost) }))); this.reloadFromStorage(); }
+      else if (changed) this.reloadFromStorage();
       this.setState({ syncStatus: 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
       if (Object.keys(m.dirty).length) this.pushDirty();
     } catch (err) {
