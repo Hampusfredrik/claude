@@ -29,3 +29,13 @@
   .vn-start-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .vn-start-card { min-height: 84px; padding: 12px 13px; }
 }
+
+/* "Recently opened": a highlighted panel at the top */
+.vn-start-recent { background: #fcfcfd; border: 1px solid #dcdee6; border-radius: 16px; padding: 18px 20px 20px; box-shadow: 0 8px 24px rgba(42, 39, 36, .07); margin-bottom: 30px; }
+.vn-start-recent h2 { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #2f6f5e; margin: 0 0 12px; }
+.vn-start-recent .vn-start-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.vn-start-recent .vn-start-card { min-height: 118px; padding: 16px 18px; }
+.vn-start-recent .vn-start-title { font-size: 19px; }
+.vn-start-recent .vn-start-card.current { background: #f3f8f5; }
+.vn-start-all { font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #46485a; margin: 0 0 10px; }
+@media (max-width: 760px) { .vn-start-recent { padding: 14px 14px 16px; } .vn-start-recent .vn-start-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } .vn-start-recent .vn-start-title { font-size: 17px; } }

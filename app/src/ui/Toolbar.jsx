@@ -12,9 +12,6 @@ export default function Toolbar({ v }) {
       ) : null}
       {v.toolsShown ? (
         <div style={css(`display:flex;gap:8px;align-items:center;width:max-content;white-space:nowrap;background:#fcfcfd;border:1px solid #dcdee6;border-radius:12px;padding:8px;box-shadow:0 2px 10px rgba(42,39,36,.06);${str(v.toolbarDyn)}`)}>
-          <button data-verify-skip="" onClick={v.openStart} title="Show all maps" style={{ border: "1px solid #dcdee6", background: "#fcfcfd", color: "#2a2724", fontSize: "13px", padding: "0 12px", height: "32px", borderRadius: "8px", cursor: "pointer" }} className="scp9">
-            All maps
-          </button>
           {v.sidebarClosed ? (
             <button onClick={v.toggleSidebar} style={{ border: "1px solid #dcdee6", background: "#fcfcfd", color: "#2a2724", fontSize: "13px", padding: "0 12px", height: "32px", borderRadius: "8px", cursor: "pointer" }}>
               ☰ Maps
