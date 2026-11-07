@@ -241,9 +241,11 @@ export default class NotebookLogic extends DCLogic {
       tx: fresh ? r.width / 2 : d.tx, ty: fresh ? r.height / 2 : d.ty, scale: d.scale || 1,
       selNode: null, selEdge: null, modalId: null, editingId: null, linkFrom: null, linkPt: null, saved: 'Saved', startOpen: false
     });
+    this.noteRecent(id);
   }
   componentDidMount() {
     this._prevState = this.state;
+    this.noteRecent(this.state.currentId);
     if (/^#view=/.test(location.hash)) { this.openShared(location.hash.slice(6)); return; }
     this.initSync();
     const el = this.surfRef.current;
@@ -768,6 +770,12 @@ export default class NotebookLogic extends DCLogic {
       this.setState({ saved: 'Exported ' + name });
     } catch (err) { window.alert('Export failed: ' + err.message); }
   }
+  // Recently opened maps on this device (not synced): [{ id, t }], newest first.
+  recentMaps() { try { const r = JSON.parse(localStorage.getItem('vn.recentMaps') || '[]'); return Array.isArray(r) ? r : []; } catch (err) { return []; } }
+  noteRecent(id) {
+    if (!id) return;
+    try { localStorage.setItem('vn.recentMaps', JSON.stringify([{ id: id, t: Date.now() }].concat(this.recentMaps().filter(r => r && r.id !== id)).slice(0, 12))); } catch (err) {}
+  }
   bookData() {
     const s = this.state, c = this._book;
     if (c && c.nodes === s.nodes && c.edges === s.edges && c.cats === s.cats) return c.book;
@@ -1051,7 +1059,9 @@ export default class NotebookLogic extends DCLogic {
       const groups = folders.map(f => ({ id: f.id, name: f.name || 'Untitled folder', maps: s.maps.filter(m => fOf(m) === f.id).map(card).filter(match) })).filter(g => g.maps.length);
       const rest = loose.map(card).filter(match);
       if (rest.length) groups.push({ id: '', name: folders.length ? 'Not in a folder' : '', maps: rest });
-      start = { groups: groups, query: s.startQ || '', count: s.maps.length, empty: !groups.length };
+      const byMap = {}; s.maps.forEach(m => { byMap[m.id] = m; });
+      const recent = sq ? [] : this.recentMaps().filter(r => r && byMap[r.id]).slice(0, 4).map(r => Object.assign(card(byMap[r.id]), { meta: 'Opened ' + fmt(r.t) }));
+      start = { recent: recent, groups: groups, query: s.startQ || '', count: s.maps.length, empty: !groups.length };
     }
     if (folders.length && (loose.length || s.dragMapFrom)) {
       const over = s.dragOver === 'z' && !!s.dragMapFrom;

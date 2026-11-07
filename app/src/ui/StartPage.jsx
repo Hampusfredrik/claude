@@ -20,6 +20,20 @@ export default function StartPage({ v }) {
             </button>
           </div>
         ) : null}
+        {st.recent.length ? (
+          <section className="vn-start-group">
+            <h2>Recently opened</h2>
+            <div className="vn-start-grid">
+              {st.recent.map(m => (
+                <button key={'r' + m.id} type="button" className={'vn-start-card' + (m.current ? ' current' : '')} onClick={() => v.startOpenMap(m.id)} title={m.title}>
+                  <span className="vn-start-title">{m.title}</span>
+                  <span className="vn-start-meta">{(m.boxes === 1 ? '1 box' : m.boxes + ' boxes') + ' · ' + m.meta}</span>
+                  {m.current ? <span className="vn-start-badge">Last opened</span> : null}
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
         {st.groups.map(g => (
           <section key={g.id || 'loose'} className="vn-start-group">
             {g.name ? <h2>{g.id ? <span className="vn-start-folder" aria-hidden="true" /> : null}{g.name}<span className="vn-start-count">{g.maps.length}</span></h2> : null}
