@@ -53,5 +53,5 @@ html,body{height:100%;margin:0}#dc-root,#dc-root>.sc-host{height:100%}
   }
 }
 
-/* Sidebar map list: rename/delete appear on hover (always shown on touch screens). */
-@media (hover: hover) { .vn-maprow [data-rowbtn] { display: none; } .vn-maprow:hover [data-rowbtn] { display: block; } }
+/* Sidebar map list and folders: their buttons appear on hover (always shown on touch screens). */
+@media (hover: hover) { .vn-maprow [data-rowbtn], .vn-folderrow [data-rowbtn] { display: none; } .vn-maprow:hover [data-rowbtn], .vn-folderrow:hover [data-rowbtn] { display: block; } }

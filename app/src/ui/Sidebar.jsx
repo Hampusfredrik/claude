@@ -8,7 +8,7 @@ export default function Sidebar({ v }) {
       {v.mobileBackdrop ? (
         <div onClick={v.toggleSidebar} style={{ position: "fixed", inset: "0", background: "rgba(42,39,36,.25)", zIndex: "30" }} />
       ) : null}
-      <div style={css(`width:250px;flex-shrink:0;height:100%;box-sizing:border-box;background:#e6e7ee;border-right:1px solid #dcdee6;display:flex;flex-direction:column;${str(v.sidebarDyn)}`)}>
+      <div style={css(`width:310px;flex-shrink:0;height:100%;box-sizing:border-box;background:#e6e7ee;border-right:1px solid #dcdee6;display:flex;flex-direction:column;${str(v.sidebarDyn)}`)}>
         <div style={{ padding: "22px 18px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
           <div style={{ fontFamily: "Karla,sans-serif", fontWeight: "600", fontSize: "21px", color: "#2a2724" }}>
             Notebook
@@ -72,7 +72,7 @@ export default function Sidebar({ v }) {
               {list(v.rows).map((m, $i) => (
                 <Fragment key={$i}>
                   {m?.isFolder ? (
-                    <div onClick={m?.onToggle} draggable={m?.fDraggable} onDragStart={m?.onFDragStart} onDragOver={m?.onFDragOver} onDrop={m?.onFDrop} onDragEnd={m?.onDragEnd} style={css(`display:flex;align-items:center;gap:6px;padding:8px 8px 8px 10px;margin-top:12px;border-radius:9px;cursor:pointer;background:#dcdeea;border:1px solid #cacdda;${str(m?.fDyn)}`)} className="scp2">
+                    <div onClick={m?.onToggle} draggable={m?.fDraggable} onDragStart={m?.onFDragStart} onDragOver={m?.onFDragOver} onDrop={m?.onFDrop} onDragEnd={m?.onDragEnd} style={css(`display:flex;align-items:center;gap:6px;padding:8px 8px 8px 10px;margin-top:12px;border-radius:9px;cursor:pointer;background:#dcdeea;border:1px solid #cacdda;${str(m?.fDyn)}`)} className="vn-folderrow scp2">
                       <span style={{ fontSize: "11px", color: "#46485a", width: "12px", flexShrink: "0" }}>
                         {iv(m?.fArrow)}
                       </span>
@@ -88,7 +88,7 @@ export default function Sidebar({ v }) {
                         </svg>
                       ) : null}
                       {m?.fNotRenaming ? (
-                        <div onDoubleClick={m?.onFStartRename} style={{ flex: "1", minWidth: "0", fontSize: "14px", fontWeight: "600", color: "#2a2724", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        <div onDoubleClick={m?.onFStartRename} title={m?.fName} style={{ flex: "1", minWidth: "0", fontSize: "14px", fontWeight: "600", color: "#2a2724", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                           {iv(m?.fName)}
                         </div>
                       ) : null}
@@ -98,13 +98,13 @@ export default function Sidebar({ v }) {
                       <span style={{ fontSize: "11px", color: "#7e8091" }}>
                         {iv(m?.fCount)}
                       </span>
-                      <button onClick={m?.onFAdd} title="New map in this folder" style={{ border: "none", background: "transparent", color: "#a2a4b4", fontSize: "15px", width: "22px", height: "22px", borderRadius: "6px", cursor: "pointer", flexShrink: "0" }} className="scp3">
+                      <button onClick={m?.onFAdd} title="New map in this folder" data-rowbtn="" style={{ border: "none", background: "transparent", color: "#a2a4b4", fontSize: "15px", width: "22px", height: "22px", borderRadius: "6px", cursor: "pointer", flexShrink: "0" }} className="scp3">
                         +
                       </button>
-                      <button onClick={m?.onFStartRename} title="Rename folder" style={{ border: "none", background: "transparent", color: "#a2a4b4", fontSize: "12px", width: "22px", height: "22px", borderRadius: "6px", cursor: "pointer", flexShrink: "0" }} className="scp4">
+                      <button onClick={m?.onFStartRename} title="Rename folder" data-rowbtn="" style={{ border: "none", background: "transparent", color: "#a2a4b4", fontSize: "12px", width: "22px", height: "22px", borderRadius: "6px", cursor: "pointer", flexShrink: "0" }} className="scp4">
                         ✎
                       </button>
-                      <button onClick={m?.onFDelete} title="Delete folder" style={{ border: "none", background: "transparent", color: "#a2a4b4", fontSize: "14px", width: "22px", height: "22px", borderRadius: "6px", cursor: "pointer", flexShrink: "0" }} className="scp5">
+                      <button onClick={m?.onFDelete} title="Delete folder" data-rowbtn="" style={{ border: "none", background: "transparent", color: "#a2a4b4", fontSize: "14px", width: "22px", height: "22px", borderRadius: "6px", cursor: "pointer", flexShrink: "0" }} className="scp5">
                         ×
                       </button>
                     </div>
@@ -118,7 +118,7 @@ export default function Sidebar({ v }) {
                     <div onClick={m?.onOpen} draggable={m?.draggable} onDragStart={m?.onDragStart} onDragOver={m?.onDragOver} onDrop={m?.onDrop} onDragEnd={m?.onDragEnd} style={css(`display:flex;align-items:center;gap:8px;padding:8px 6px 8px 11px;border-radius:9px;cursor:pointer;background:#eaf3ee;border:1px solid #c9dfd2;border-color:#c9dfd2;margin-top:5px;${str(m?.dyn)}`)} className="vn-maprow scp1">
                       <div style={{ flex: "1", minWidth: "0", display: "flex", flexDirection: "column", gap: "2px" }}>
                         {m?.notRenaming ? (
-                          <div onDoubleClick={m?.onStartRename} style={css(`font-size:14.5px;color:#2a2724;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${str(m?.titleDyn)}`)}>
+                          <div onDoubleClick={m?.onStartRename} title={m?.title} style={css(`font-size:14.5px;color:#2a2724;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${str(m?.titleDyn)}`)}>
                             {iv(m?.title)}
                           </div>
                         ) : null}
