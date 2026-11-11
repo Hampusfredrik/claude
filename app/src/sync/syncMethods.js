@@ -31,11 +31,15 @@ export const syncMethods = {
       clearTimeout(this.pushT); this.pushT = setTimeout(() => this.pushDirty(), 1500);
       if (this.state.syncUser && this.state.syncStatus !== 'Saving…') this.setState({ syncStatus: 'Saving…' });
     };
+    // An invitation link from Supabase signs the person in (#...type=invite);
+    // they then choose a password, like after a password-reset link.
+    let invited = /(^|[#&])type=invite(&|$)/.test(location.hash);
     const start = () => {
       this.sb = createClient(SB_URL, SB_KEY, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'implicit' } });
       this.sb.auth.onAuthStateChange((ev, session) => {
         if (!this.state.authReady) this.setState({ authReady: true });
-        if (ev === 'PASSWORD_RECOVERY') this.setState({ recovering: true, sidebarOpen: true });
+        if (ev === 'PASSWORD_RECOVERY') this.setState({ recovering: true, recoverKind: 'reset', sidebarOpen: true });
+        if (invited && session) { invited = false; this.setState({ recovering: true, recoverKind: 'invite', sidebarOpen: true }); }
         const u = session && session.user;
         const prev = this.state.syncUser && this.state.syncUser.id;
         this.setState({ syncUser: u ? { id: u.id, email: u.email } : null, syncStatus: u ? this.state.syncStatus : '' });
@@ -123,6 +127,7 @@ export const syncMethods = {
     this.suppressSave = true;
     this.setState({ maps: idx.maps, folders: idx.folders || [], currentId: cur, nodes: d.nodes || [], edges: d.edges || [], frames: d.frames || [], cats: d.cats ? migrateCats(d.cats) : loadCats(), selNode: null, selEdge: null, editingId: null, modalId: null });
   },
+  // mode: 'login' or 'reset'. There is no sign-up: accounts are invited in Supabase.
   async passwordAuth(mode) {
     const email = (this.state.loginEmail || '').trim(), pw = this.state.loginPw || '';
     if (!/^\S+@\S+\.\S+$/.test(email)) { this.setState({ loginMsg: 'Enter a valid email address.' }); return; }
@@ -131,12 +136,10 @@ export const syncMethods = {
     this.setState({ loginBusy: true, loginMsg: '' });
     const redirect = window.location.origin + window.location.pathname;
     let res;
-    if (mode === 'signup') res = await this.sb.auth.signUp({ email: email, password: pw, options: { emailRedirectTo: redirect } });
-    else if (mode === 'reset') res = await this.sb.auth.resetPasswordForEmail(email, { redirectTo: redirect });
+    if (mode === 'reset') res = await this.sb.auth.resetPasswordForEmail(email, { redirectTo: redirect });
     else res = await this.sb.auth.signInWithPassword({ email: email, password: pw });
     let msg = '';
     if (res.error) msg = /confirm/i.test(res.error.message) ? 'Your email is not confirmed yet. Click the link in the confirmation email (on any device), then log in here.' : (/invalid login/i.test(res.error.message) ? 'Wrong email or password.' : res.error.message);
-    else if (mode === 'signup') msg = res.data && res.data.session ? '' : 'Account created. Click the confirmation link we emailed you (phone is fine), then come back and log in here.';
     else if (mode === 'reset') msg = 'We emailed you a link to set a new password. Open it on this computer.';
     this.setState({ loginBusy: false, loginMsg: msg, loginPw: res.error ? pw : '', loginOpen: !!msg || !!res.error });
   },

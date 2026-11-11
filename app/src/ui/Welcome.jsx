@@ -32,9 +32,9 @@ export default function Welcome({ v }) {
               </div>
             ) : null}
             <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", paddingTop: "4px" }}>
-              <button onClick={v.toggleSignup} style={{ border: "none", background: "transparent", color: "#2f6f5e", fontSize: "13px", fontWeight: "600", padding: "6px 0", cursor: "pointer" }}>
-                {iv(v.welcomeSwitch)}
-              </button>
+              <span style={{ color: "#6a6c7e", fontSize: "13px", padding: "6px 0" }}>
+                Accounts are by invitation only
+              </span>
               <button onClick={v.forgotPw} style={{ border: "none", background: "transparent", color: "#6a6c7e", fontSize: "13px", padding: "6px 0", cursor: "pointer" }}>
                 Forgot password?
               </button>

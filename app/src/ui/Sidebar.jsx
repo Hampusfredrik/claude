@@ -145,8 +145,8 @@ export default function Sidebar({ v }) {
         <div style={{ padding: "12px 14px", borderTop: "1px solid #dcdee6", display: "flex", flexDirection: "column", gap: "8px" }}>
           {v.recovering ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <div style={{ fontSize: "12px", color: "#5e6072" }}>
-                Choose a new password
+              <div style={{ fontSize: "12px", color: "#5e6072", lineHeight: "1.45" }}>
+                {iv(v.recoverLabel)}
               </div>
               <input value={val(v.newPw)} onChange={v.onNewPw} type="password" autoComplete="new-password" placeholder="New password" style={{ border: "1px solid #dcdee6", background: "#fcfcfd", borderRadius: "8px", padding: "8px 10px", fontSize: "13px", color: "#2a2724" }} />
               <button onClick={v.setNewPassword} style={{ border: "none", background: "#2f6f5e", color: "#fcfcfd", fontSize: "12px", fontWeight: "600", padding: "8px 0", borderRadius: "8px", cursor: "pointer" }}>
@@ -193,9 +193,9 @@ export default function Sidebar({ v }) {
                     </button>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "6px" }}>
-                    <button onClick={v.toggleSignup} style={{ border: "none", background: "transparent", color: "#2f6f5e", fontSize: "12px", padding: "0", cursor: "pointer", textAlign: "left" }}>
-                      {iv(v.switchLabel)}
-                    </button>
+                    <span style={{ color: "#7e8091", fontSize: "12px" }}>
+                      By invitation only
+                    </span>
                     <button onClick={v.forgotPw} style={{ border: "none", background: "transparent", color: "#6a6c7e", fontSize: "12px", padding: "0", cursor: "pointer" }}>
                       Forgot password?
                     </button>
